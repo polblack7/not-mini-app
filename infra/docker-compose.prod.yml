@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: onearb-mongo
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+
+  api:
+    build:
+      context: ../backend
+    container_name: onearb-api
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      MONGO_URL: mongodb://mongo:27017/onearb
+    depends_on:
+      - mongo
+
+  bot:
+    build:
+      context: ../backend
+    container_name: onearb-bot
+    restart: unless-stopped
+    env_file:
+      - ../.env
+    environment:
+      MONGO_URL: mongodb://mongo:27017/onearb
+    command: ["python", "-m", "bot.main"]
+    depends_on:
+      - mongo
+
+  web:
+    build:
+      context: ../frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    container_name: onearb-web
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2
+    container_name: onearb-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    env_file:
+      - ../.env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
+volumes:
+  mongo_data:
+  caddy_data:
+  caddy_config:
