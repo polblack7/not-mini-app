@@ -24,7 +24,6 @@ export const Layout = ({ children }) => {
             : "No wallet"}
         </div>
       </header>
-      <main className="app-content">{children}</main>
       <nav className="bottom-nav">
         {navItems.map((item) => (
           <NavLink
@@ -36,6 +35,7 @@ export const Layout = ({ children }) => {
           </NavLink>
         ))}
       </nav>
+      <main className="app-content">{children}</main>
     </div>
   );
 };

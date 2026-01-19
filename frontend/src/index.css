@@ -91,11 +91,11 @@ textarea {
 
 .app-header {
   padding: 20px;
+  padding-top: calc(56px + var(--tg-content-safe-area-inset-top));
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: var(--tg-header);
-  border-bottom: 1px solid var(--border);
 }
 
 .brand {
@@ -126,8 +126,8 @@ textarea {
 .bottom-nav {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  background: var(--surface);
-  border-top: 1px solid var(--border);
+  background: var(--tg-surface);
+  border-top: 0px solid var(--border);
 }
 
 .nav-link {

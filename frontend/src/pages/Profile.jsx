@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
 
@@ -6,8 +6,11 @@ const ProfilePage = () => {
   const { profile, setProfile, login, logout } = useAuth();
   const [token, setToken] = useState("");
   const [notice, setNotice] = useState(null);
+  const didFetchProfile = useRef(false);
 
   useEffect(() => {
+    if (didFetchProfile.current) return;
+    didFetchProfile.current = true;
     api.me().then(setProfile).catch(() => null);
   }, [setProfile]);
 
@@ -41,7 +44,7 @@ const ProfilePage = () => {
         <div className="profile-grid">
           <div>
             <p className="kpi-label">Connected wallet</p>
-            <p className="mono">{profile.wallet_address}</p>
+            <p className="mono">{profile.wallet_address.slice(0, 8)}...{profile.wallet_address.slice(-6)}</p>
           </div>
           <div>
             <p className="kpi-label">Successful trades</p>

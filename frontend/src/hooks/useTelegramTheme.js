@@ -32,14 +32,25 @@ function applyViewport(telegram) {
   }
 }
 
+function requestFullscreen(telegram) {
+  if (!telegram) return;
+  if (telegram.expand) {
+    telegram.expand();
+  }
+  if (telegram.requestFullscreen) {
+    telegram.requestFullscreen();
+  }
+}
+
 export function useTelegramTheme() {
   useEffect(() => {
     const telegram = (window.Telegram && window.Telegram.WebApp) || window.TelegramWebApp;
     if (!telegram) return;
 
     telegram.ready && telegram.ready();
-    telegram.expand && telegram.expand();
+    requestFullscreen(telegram);
     telegram.requestTheme && telegram.requestTheme();
+    telegram.disableVerticalSwipes && telegram.disableVerticalSwipes();
 
     applyTheme(telegram.initDataUnsafe && telegram.initDataUnsafe.theme_params);
     applyViewport(telegram);
@@ -48,6 +59,9 @@ export function useTelegramTheme() {
     });
     telegram.onEvent && telegram.onEvent("viewport_changed", () => {
       applyViewport(telegram);
+      if (telegram.expand && telegram.isExpanded === false) {
+        telegram.expand();
+      }
     });
   }, []);
 }
