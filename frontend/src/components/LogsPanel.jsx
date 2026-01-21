@@ -4,6 +4,7 @@ import { api } from "../api/client";
 export const LogsPanel = () => {
   const [items, setItems] = useState([]);
 
+
   useEffect(() => {
     api.logs(10).then(setItems).catch(() => setItems([]));
   }, []);
@@ -22,7 +23,7 @@ export const LogsPanel = () => {
             <div key={item.id || item.created_at} className={`panel-item level-${item.level}`}>
               <div>
                 <p className="panel-title">{item.message}</p>
-                <p className="panel-message">{item.context ? JSON.stringify(item.context) : ""}</p>
+                <p className="panel-message">{item.context ? JSON.stringify(item.context).slice(0, 35) : ""}</p>
               </div>
               <span className="panel-meta">{new Date(item.created_at).toLocaleTimeString()}</span>
             </div>

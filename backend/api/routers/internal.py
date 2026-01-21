@@ -96,3 +96,11 @@ async def internal_event(payload: InternalEvent, _=Depends(verify_internal_key))
         raise ApiException(status_code=400, code="EVENT_INVALID", message="Unknown event type")
 
     return ok({"status": "accepted"})
+
+
+@router.get("/active-users")
+async def active_users(_=Depends(verify_internal_key)):
+    db = get_db()
+    cursor = db.bot_state.find({"status": "active"}, {"wallet_address": 1})
+    wallets = [doc.get("wallet_address") async for doc in cursor]
+    return ok(wallets)
