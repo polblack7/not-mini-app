@@ -533,3 +533,47 @@ All endpoints are rate-limited by the global rate limiter.
 - Response:
   - List of wallet addresses in the `ok` envelope.
 
+
+
+## Quick Start (Local)
+
+1) Start MongoDB
+
+```bash
+cd infra
+docker-compose up -d
+```
+
+2) Configure environment
+
+```bash
+cp .env.example .env
+```
+
+Fill in `BOT_TOKEN`, `JWT_SECRET`, `ACCESS_TOKEN_MASTER`, `INTERNAL_API_KEY`, and `MINIAPP_URL`.
+
+For the frontend, create `frontend/.env` from `frontend/.env.example` if you need a custom API base URL.
+
+3) Run the API
+
+```bash
+cd backend
+pip install -r requirements.txt
+uvicorn api.main:app --reload
+```
+
+4) Run the bot
+
+```bash
+cd backend
+python -m bot.main
+```
+
+5) Run the frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
