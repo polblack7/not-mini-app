@@ -32,7 +32,10 @@ const DashboardPage = () => {
   useEffect(() => {
     loadStatus();
     loadOpportunities();
-    const interval = setInterval(loadStatus, 4000);
+    const interval = setInterval(() => {
+      loadStatus();
+      loadOpportunities();
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 

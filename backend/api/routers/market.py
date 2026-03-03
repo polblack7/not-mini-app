@@ -15,6 +15,6 @@ async def market_opportunities(user: dict = Depends(get_current_user)):
     cursor = db.opportunities.find(
         {"wallet_address": user["wallet_address"]},
         {"_id": 0},
-    ).sort("timestamp", -1).limit(20)
-    opportunities = await cursor.to_list(length=20)
+    ).sort("timestamp", -1).limit(4)
+    opportunities = await cursor.to_list(length=4)
     return ok(opportunities)

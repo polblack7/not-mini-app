@@ -4,9 +4,14 @@ import { api } from "../api/client";
 export const LogsPanel = () => {
   const [items, setItems] = useState([]);
 
+  const load = () => {
+    api.logs(6).then(setItems).catch(() => setItems([]));
+  };
 
   useEffect(() => {
-    api.logs(10).then(setItems).catch(() => setItems([]));
+    load();
+    const interval = setInterval(load, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   return (
