@@ -30,10 +30,11 @@ async def login(payload: LoginRequest):
     if not is_valid_wallet(payload.wallet_address):
         raise ApiException(status_code=400, code="WALLET_INVALID", message="Invalid wallet address")
 
+    wallet = payload.wallet_address.lower()
     db = get_db()
     settings = get_settings()
     token_hash = hash_token(payload.access_token)
-    user = await db.users.find_one({"wallet_address": payload.wallet_address})
+    user = await db.users.find_one({"wallet_address": wallet})
 
     if user:
         stored_hash = user.get("access_token_hash")
@@ -42,13 +43,13 @@ async def login(payload: LoginRequest):
             raise ApiException(status_code=401, code="AUTH_INVALID", message="Access token mismatch")
         if stored_hash != token_hash and master_ok:
             await db.users.update_one(
-                {"wallet_address": payload.wallet_address}, {"$set": {"access_token_hash": token_hash}}
+                {"wallet_address": wallet}, {"$set": {"access_token_hash": token_hash}}
             )
     else:
         if settings.access_token_master and payload.access_token != settings.access_token_master:
             raise ApiException(status_code=401, code="AUTH_INVALID", message="Access token invalid")
         user = {
-            "wallet_address": payload.wallet_address,
+            "wallet_address": wallet,
             "created_at": now_utc(),
             "last_login": now_utc(),
             "total_profit": 0.0,
@@ -59,20 +60,20 @@ async def login(payload: LoginRequest):
         await db.users.insert_one(user)
 
     await db.users.update_one(
-        {"wallet_address": payload.wallet_address}, {"$set": {"last_login": now_utc()}}
+        {"wallet_address": wallet}, {"$set": {"last_login": now_utc()}}
     )
 
     if payload.telegram_user_id:
         await db.telegram_users.update_one(
             {"telegram_user_id": payload.telegram_user_id},
-            {"$set": {"wallet_address": payload.wallet_address}},
+            {"$set": {"wallet_address": wallet}},
             upsert=True,
         )
 
-    await ensure_mock_seed(payload.wallet_address)
+    await ensure_mock_seed(wallet)
 
-    token = create_access_token(payload.wallet_address)
-    user = await db.users.find_one({"wallet_address": payload.wallet_address})
+    token = create_access_token(wallet)
+    user = await db.users.find_one({"wallet_address": wallet})
     profile = _build_profile(user)
     response = LoginResponse(token=token, profile=profile)
     return ok(response.model_dump())

@@ -23,7 +23,7 @@ async def verify_internal_key(x_internal_key: str | None = Header(default=None))
 @router.post("/event")
 async def internal_event(payload: InternalEvent, _=Depends(verify_internal_key)):
     db = get_db()
-    wallet = payload.wallet_address
+    wallet = payload.wallet_address.lower()
     event_type = payload.type
     data = payload.payload
 
@@ -78,19 +78,21 @@ async def internal_event(payload: InternalEvent, _=Depends(verify_internal_key))
         await notify_wallet(wallet, f"Opportunity: {data.get('message', 'New route detected')}")
 
     elif event_type == "status":
+        last_error = data.get("last_error")
         await db.bot_state.update_one(
             {"wallet_address": wallet},
             {
                 "$set": {
                     "status": data.get("status", "error"),
-                    "last_error": data.get("last_error"),
+                    "last_error": last_error,
                     "last_change_at": now_utc(),
                 }
             },
             upsert=True,
         )
-        await create_notification(wallet, "error", "Critical error", data.get("last_error", ""))
-        await notify_wallet(wallet, f"Critical error: {data.get('last_error', '')}")
+        if last_error:
+            await create_notification(wallet, "error", "Critical error", last_error)
+            await notify_wallet(wallet, f"Critical error: {last_error}")
 
     else:
         raise ApiException(status_code=400, code="EVENT_INVALID", message="Unknown event type")
