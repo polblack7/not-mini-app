@@ -75,7 +75,15 @@ async def internal_event(payload: InternalEvent, _=Depends(verify_internal_key))
             data.get("title", "Opportunity found"),
             data.get("message", "New route detected"),
         )
-        await notify_wallet(wallet, f"Opportunity: {data.get('message', 'New route detected')}")
+        tg_message = (
+            f"<b>Arbitrage opportunity</b>\n"
+            f"Pair: <b>{data.get('pair', '—')}</b>\n"
+            f"Buy on: {data.get('buy_dex', '—')}\n"
+            f"Sell on: {data.get('sell_dex', '—')}\n"
+            f"Expected profit: <b>{float(data.get('expected_profit_pct', 0)):.2f}%</b>\n"
+            f"Gas: {float(data.get('gas_price_gwei', 0)):.1f} Gwei"
+        )
+        await notify_wallet(wallet, tg_message)
 
     elif event_type == "status":
         last_error = data.get("last_error")
