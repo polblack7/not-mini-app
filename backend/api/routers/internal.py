@@ -69,6 +69,16 @@ async def internal_event(payload: InternalEvent, _=Depends(verify_internal_key))
         await notify_wallet(wallet, f"{data.get('title', 'Update')}: {data.get('message', '')}")
 
     elif event_type == "opportunity":
+        await db.opportunities.insert_one({
+            "wallet_address": wallet,
+            "pair": data.get("pair", ""),
+            "buy_dex": data.get("buy_dex", ""),
+            "sell_dex": data.get("sell_dex", ""),
+            "expected_profit_pct": float(data.get("expected_profit_pct", 0)),
+            "liquidity_score": float(data.get("liquidity_score", 0)),
+            "gas_price_gwei": float(data.get("gas_price_gwei", 0)),
+            "timestamp": data.get("timestamp", now_utc()),
+        })
         await create_notification(
             wallet,
             "opportunity",

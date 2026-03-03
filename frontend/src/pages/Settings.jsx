@@ -2,7 +2,18 @@ import React, { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { TagInput } from "../components/TagInput";
 
-const DEX_OPTIONS = ["Uniswap", "SushiSwap", "Curve"];
+const DEX_OPTIONS = [
+  "Uniswap V2",
+  "Uniswap V3",
+  "SushiSwap",
+  "ShibaSwap",
+  "Curve",
+  "Balancer V2",
+  "0x",
+  "1inch",
+  "KyberSwap Elastic",
+  "DODO V2",
+];
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState(null);

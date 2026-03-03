@@ -6,7 +6,6 @@ from api.auth import create_access_token
 from api.errors import ApiException
 from api.responses import ok
 from api.schemas import LoginRequest, LoginResponse, Profile
-from api.seed import ensure_mock_seed
 from core.config import get_settings
 from core.db import get_db
 from core.utils import hash_token, is_valid_wallet, now_utc
@@ -69,8 +68,6 @@ async def login(payload: LoginRequest):
             {"$set": {"wallet_address": wallet}},
             upsert=True,
         )
-
-    await ensure_mock_seed(wallet)
 
     token = create_access_token(wallet)
     user = await db.users.find_one({"wallet_address": wallet})
