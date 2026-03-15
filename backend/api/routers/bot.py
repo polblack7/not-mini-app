@@ -6,7 +6,6 @@ from api.auth import get_current_user
 from api.responses import ok
 from api.services import create_notification
 from core.db import get_db
-from core.mock_data import compute_kpis
 from core.trading_adapter import get_adapter
 from core.utils import now_utc
 
@@ -49,5 +48,11 @@ async def bot_status(user: dict = Depends(get_current_user)):
     status = state.get("status") if state else "stopped"
     last_error = state.get("last_error") if state else None
     ops = await db.ops.find({"wallet_address": user["wallet_address"]}).to_list(length=200)
-    kpis = compute_kpis(ops)
+    successes = [op for op in ops if op.get("status") == "success"]
+    profit = sum(op["profit"] for op in successes)
+    kpis = {
+        "current_profit": round(profit, 4),
+        "completed_deals": len(successes),
+        "avg_profitability": round(profit / len(successes), 4) if successes else 0.0,
+    }
     return ok({"status": status, "last_error": last_error, "kpis": kpis})

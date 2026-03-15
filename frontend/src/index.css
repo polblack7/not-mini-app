@@ -123,6 +123,15 @@ textarea {
   gap: 16px;
 }
 
+.dashboard,
+.settings,
+.reports,
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .bottom-nav {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

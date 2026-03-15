@@ -13,7 +13,6 @@ from api.auth import get_current_user
 from api.responses import ok
 from api.services import format_doc
 from core.db import get_db
-from core.mock_data import compute_summary
 
 router = APIRouter(prefix="", tags=["reports"])
 
@@ -66,7 +65,15 @@ async def stats_summary(
     db = get_db()
     query = _build_query(user["wallet_address"], from_ts, to_ts, pair, dex)
     ops_items = await db.ops.find(query).to_list(length=1000)
-    summary = compute_summary(ops_items)
+    successes = [op for op in ops_items if op.get("status") == "success"]
+    total = len(ops_items)
+    profit = sum(op["profit"] for op in successes)
+    summary = {
+        "total_profit": round(profit, 4),
+        "successful_arbs": len(successes),
+        "avg_profitability": round(profit / len(successes), 4) if successes else 0.0,
+        "success_rate": round(len(successes) / total, 4) if total else 0.0,
+    }
     return ok(summary)
 
 

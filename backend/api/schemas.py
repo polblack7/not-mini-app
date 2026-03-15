@@ -47,6 +47,11 @@ class SettingsPayload(BaseModel):
 
 class SettingsResponse(SettingsPayload):
     updated_at: Optional[datetime] = None
+    has_wallet_key: bool = False
+
+
+class WalletKeyPayload(BaseModel):
+    private_key: str = Field(..., min_length=64, max_length=66)
 
 
 class BotKpis(BaseModel):

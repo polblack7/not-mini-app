@@ -124,3 +124,15 @@ async def active_users(_=Depends(verify_internal_key)):
     cursor = db.bot_state.find({"status": "active"}, {"wallet_address": 1})
     wallets = [doc.get("wallet_address") async for doc in cursor]
     return ok(wallets)
+
+
+@router.get("/wallet-key/{wallet_address}")
+async def get_wallet_key(wallet_address: str, _=Depends(verify_internal_key)):
+    db = get_db()
+    settings = await db.settings.find_one(
+        {"wallet_address": wallet_address.lower()},
+        {"encrypted_private_key": 1},
+    )
+    if not settings or not settings.get("encrypted_private_key"):
+        return ok({"encrypted_private_key": None})
+    return ok({"encrypted_private_key": settings["encrypted_private_key"]})

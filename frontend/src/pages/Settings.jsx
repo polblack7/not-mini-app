@@ -19,6 +19,8 @@ const SettingsPage = () => {
   const [settings, setSettings] = useState(null);
   const [customDex, setCustomDex] = useState("");
   const [notice, setNotice] = useState(null);
+  const [walletKey, setWalletKey] = useState("");
+  const [keyNotice, setKeyNotice] = useState(null);
 
   useEffect(() => {
     api.getSettings().then(setSettings).catch(() => setSettings(null));
@@ -49,6 +51,30 @@ const SettingsPage = () => {
       setNotice({ type: "success", message: "Saved" });
     } catch (err) {
       setNotice({ type: "error", message: err.message || "Failed to save" });
+    }
+  };
+
+  const submitWalletKey = async () => {
+    setKeyNotice(null);
+    if (!walletKey.trim()) return;
+    try {
+      await api.setWalletKey(walletKey.trim());
+      setWalletKey("");
+      setSettings({ ...settings, has_wallet_key: true });
+      setKeyNotice({ type: "success", message: "Wallet key saved" });
+    } catch (err) {
+      setKeyNotice({ type: "error", message: err.message || "Failed to save key" });
+    }
+  };
+
+  const removeWalletKey = async () => {
+    setKeyNotice(null);
+    try {
+      await api.deleteWalletKey();
+      setSettings({ ...settings, has_wallet_key: false });
+      setKeyNotice({ type: "success", message: "Wallet key removed" });
+    } catch (err) {
+      setKeyNotice({ type: "error", message: err.message || "Failed to remove key" });
     }
   };
 
@@ -136,6 +162,40 @@ const SettingsPage = () => {
         <button className="primary" onClick={save}>
           Save
         </button>
+      </section>
+
+      <section className="card">
+        <div className="panel-header">
+          <h2>Auto-execute</h2>
+          <span className="panel-meta">
+            {settings.has_wallet_key
+              ? "Wallet key stored — trades will execute automatically"
+              : "Provide your private key to enable auto-execution"}
+          </span>
+        </div>
+        {keyNotice && <div className={`alert ${keyNotice.type}`}>{keyNotice.message}</div>}
+        {settings.has_wallet_key ? (
+          <div className="field">
+            <span className="badge success">Key stored</span>
+            <button className="ghost" onClick={removeWalletKey} style={{ marginLeft: 8 }}>
+              Remove key
+            </button>
+          </div>
+        ) : (
+          <div className="field">
+            <label>Private key</label>
+            <input
+              type="password"
+              value={walletKey}
+              onChange={(event) => setWalletKey(event.target.value)}
+              placeholder="0x..."
+              autoComplete="off"
+            />
+            <button className="primary" onClick={submitWalletKey} style={{ marginTop: 8 }}>
+              Save key
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

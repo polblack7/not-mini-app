@@ -15,6 +15,7 @@ class Settings:
     cors_origins: str
     miniapp_url: str
     jwt_ttl_minutes: int
+    wallet_encryption_key: str
 
 
 _cached_settings: Settings | None = None
@@ -37,5 +38,6 @@ def get_settings() -> Settings:
         cors_origins=os.getenv("CORS_ORIGINS", "http://localhost:5173"),
         miniapp_url=os.getenv("MINIAPP_URL", ""),
         jwt_ttl_minutes=int(os.getenv("JWT_TTL_MINUTES", "10080")),
+        wallet_encryption_key=os.getenv("WALLET_ENCRYPTION_KEY", ""),
     )
     return _cached_settings
