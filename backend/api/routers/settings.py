@@ -14,7 +14,12 @@ from core.utils import now_utc
 router = APIRouter(prefix="", tags=["settings"])
 
 
-@router.get("/settings")
+@router.get(
+    "/settings",
+    summary="Get bot settings",
+    description="Returns the current strategy settings. If no settings exist for the user yet, a default document is created and returned.",
+    response_model=None,
+)
 async def get_settings(user: dict = Depends(get_current_user)):
     db = get_db()
     settings = await db.settings.find_one({"wallet_address": user["wallet_address"]})
@@ -42,7 +47,12 @@ async def get_settings(user: dict = Depends(get_current_user)):
     return ok(payload.model_dump())
 
 
-@router.put("/settings")
+@router.put(
+    "/settings",
+    summary="Update bot settings",
+    description="Overwrites the user's strategy settings (profit threshold, loan limit, DEX list, trading pairs, scan frequency).",
+    response_model=None,
+)
 async def update_settings(payload: SettingsPayload, user: dict = Depends(get_current_user)):
     db = get_db()
     updated = payload.model_dump()
@@ -60,7 +70,16 @@ async def update_settings(payload: SettingsPayload, user: dict = Depends(get_cur
     return ok(response.model_dump())
 
 
-@router.put("/settings/wallet-key")
+@router.put(
+    "/settings/wallet-key",
+    summary="Store encrypted wallet private key",
+    description=(
+        "Encrypts the provided Ethereum private key with a per-user derived key (HKDF + Fernet) "
+        "and stores it. Required for auto-execution of trades by the DEX monitor.\n\n"
+        "Returns `503` if `WALLET_ENCRYPTION_KEY` is not configured on the server."
+    ),
+    response_model=None,
+)
 async def set_wallet_key(payload: WalletKeyPayload, user: dict = Depends(get_current_user)):
     app_settings = get_app_settings()
     if not app_settings.wallet_encryption_key:
@@ -84,7 +103,12 @@ async def set_wallet_key(payload: WalletKeyPayload, user: dict = Depends(get_cur
     return ok({"has_wallet_key": True})
 
 
-@router.delete("/settings/wallet-key")
+@router.delete(
+    "/settings/wallet-key",
+    summary="Remove wallet private key",
+    description="Removes the stored encrypted private key. Auto-execution will be disabled until a new key is provided.",
+    response_model=None,
+)
 async def delete_wallet_key(user: dict = Depends(get_current_user)):
     db = get_db()
     await db.settings.update_one(

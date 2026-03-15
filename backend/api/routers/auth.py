@@ -24,7 +24,17 @@ def _build_profile(user: dict) -> Profile:
     )
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    summary="Login / register",
+    description=(
+        "Authenticate with a wallet address and access token.\n\n"
+        "- If the wallet doesn't exist yet, a new account is created (requires master token).\n"
+        "- On success returns a signed JWT valid for `JWT_TTL_MINUTES` minutes.\n"
+        "- Optionally links a Telegram user ID to the wallet."
+    ),
+    response_model=None,
+)
 async def login(payload: LoginRequest):
     if not is_valid_wallet(payload.wallet_address):
         raise ApiException(status_code=400, code="WALLET_INVALID", message="Invalid wallet address")

@@ -15,7 +15,30 @@ from api.routers import auth, bot, internal, logs, market, notifications, profil
 from core.config import get_settings
 from core.db import init_indexes
 
-app = FastAPI(title="ØNE-ARB API", version="0.1.0")
+app = FastAPI(
+    title="ØNE-ARB API",
+    version="0.1.0",
+    description=(
+        "Backend API for the ØNE-ARB Telegram Mini App.\n\n"
+        "## Authentication\n"
+        "Most endpoints require a JWT Bearer token obtained from `POST /auth/login`.\n"
+        "Pass it as `Authorization: Bearer <token>`.\n\n"
+        "## Internal endpoints\n"
+        "Routes under `/internal/*` are for the DEX monitor service only "
+        "and require the `X-Internal-Key` header."
+    ),
+    openapi_tags=[
+        {"name": "auth",          "description": "Obtain and refresh JWT tokens."},
+        {"name": "profile",       "description": "Authenticated user profile and lifetime stats."},
+        {"name": "settings",      "description": "Bot strategy settings and wallet key management."},
+        {"name": "bot",           "description": "Start / stop the trading bot and read live KPIs."},
+        {"name": "reports",       "description": "Trade history, aggregated stats, and data export."},
+        {"name": "market",        "description": "Live arbitrage opportunities detected by the monitor."},
+        {"name": "notifications", "description": "In-app notifications feed."},
+        {"name": "logs",          "description": "Structured bot execution logs."},
+        {"name": "internal",      "description": "Internal endpoints used by the DEX monitor service (X-Internal-Key required)."},
+    ],
+)
 
 settings_env = get_settings()
 origins = [origin.strip() for origin in settings_env.cors_origins.split(",") if origin.strip()]

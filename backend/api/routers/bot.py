@@ -12,7 +12,12 @@ from core.utils import now_utc
 router = APIRouter(prefix="", tags=["bot"])
 
 
-@router.post("/bot/start")
+@router.post(
+    "/bot/start",
+    summary="Start the trading bot",
+    description="Activates the bot for the authenticated wallet. Updates `bot_state` to `active` and emits a notification.",
+    response_model=None,
+)
 async def start_bot(user: dict = Depends(get_current_user)):
     db = get_db()
     settings = await db.settings.find_one({"wallet_address": user["wallet_address"]}) or {}
@@ -27,7 +32,12 @@ async def start_bot(user: dict = Depends(get_current_user)):
     return ok({"status": "active"})
 
 
-@router.post("/bot/stop")
+@router.post(
+    "/bot/stop",
+    summary="Stop the trading bot",
+    description="Deactivates the bot for the authenticated wallet. Updates `bot_state` to `stopped` and emits a notification.",
+    response_model=None,
+)
 async def stop_bot(user: dict = Depends(get_current_user)):
     db = get_db()
     adapter = get_adapter()
@@ -41,7 +51,18 @@ async def stop_bot(user: dict = Depends(get_current_user)):
     return ok({"status": "stopped"})
 
 
-@router.get("/bot/status")
+@router.get(
+    "/bot/status",
+    summary="Get bot status and KPIs",
+    description=(
+        "Returns the current bot state (`active` / `stopped` / `error`) and live KPIs "
+        "computed from the wallet's trade history:\n\n"
+        "- `current_profit` — total ETH profit from successful trades\n"
+        "- `completed_deals` — number of successful trades\n"
+        "- `avg_profitability` — average profit per successful trade"
+    ),
+    response_model=None,
+)
 async def bot_status(user: dict = Depends(get_current_user)):
     db = get_db()
     state = await db.bot_state.find_one({"wallet_address": user["wallet_address"]})

@@ -38,7 +38,12 @@ def _build_query(
     return query
 
 
-@router.get("/ops")
+@router.get(
+    "/ops",
+    summary="List trade operations",
+    description="Returns trade operations for the authenticated wallet, newest first. Supports filtering by date range, token pair, and DEX. Max 200 records.",
+    response_model=None,
+)
 async def ops(
     user: dict = Depends(get_current_user),
     from_ts: Optional[datetime] = Query(None, alias="from"),
@@ -54,7 +59,12 @@ async def ops(
     return ok(ops_items)
 
 
-@router.get("/stats/summary")
+@router.get(
+    "/stats/summary",
+    summary="Aggregated trade statistics",
+    description="Returns aggregated stats for the filtered trade set: total profit, successful arb count, average profitability, and success rate.",
+    response_model=None,
+)
 async def stats_summary(
     user: dict = Depends(get_current_user),
     from_ts: Optional[datetime] = Query(None, alias="from"),
@@ -77,7 +87,12 @@ async def stats_summary(
     return ok(summary)
 
 
-@router.get("/export/csv")
+@router.get(
+    "/export/csv",
+    summary="Export operations as CSV",
+    description="Streams up to 2000 trade operations as a CSV file attachment. Supports the same filters as `/ops`.",
+    response_model=None,
+)
 async def export_csv(
     user: dict = Depends(get_current_user),
     from_ts: Optional[datetime] = Query(None, alias="from"),
@@ -111,7 +126,12 @@ async def export_csv(
     return StreamingResponse(buffer, media_type="text/csv", headers=headers)
 
 
-@router.get("/export/json")
+@router.get(
+    "/export/json",
+    summary="Export operations as JSON",
+    description="Returns up to 2000 trade operations as a downloadable JSON file. Supports the same filters as `/ops`.",
+    response_model=None,
+)
 async def export_json(
     user: dict = Depends(get_current_user),
     from_ts: Optional[datetime] = Query(None, alias="from"),

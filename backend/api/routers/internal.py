@@ -20,7 +20,20 @@ async def verify_internal_key(x_internal_key: str | None = Header(default=None))
         raise ApiException(status_code=401, code="AUTH_INVALID", message="Invalid internal key")
 
 
-@router.post("/event")
+@router.post(
+    "/event",
+    summary="Ingest DEX monitor event",
+    description=(
+        "Accepts events from the DEX monitor service. Requires `X-Internal-Key` header.\n\n"
+        "Supported event `type` values:\n\n"
+        "- `op` — completed trade operation (writes to `ops`, updates user KPIs)\n"
+        "- `log` — structured log entry\n"
+        "- `notification` — push notification to the user\n"
+        "- `opportunity` — detected arbitrage opportunity\n"
+        "- `status` — bot status change (`active` / `stopped` / `error`)"
+    ),
+    response_model=None,
+)
 async def internal_event(payload: InternalEvent, _=Depends(verify_internal_key)):
     db = get_db()
     wallet = payload.wallet_address.lower()
@@ -118,7 +131,12 @@ async def internal_event(payload: InternalEvent, _=Depends(verify_internal_key))
     return ok({"status": "accepted"})
 
 
-@router.get("/active-users")
+@router.get(
+    "/active-users",
+    summary="List wallets with active bot",
+    description="Returns wallet addresses whose bot state is `active`. Used by the DEX monitor supervisor to determine which wallets to scan. Requires `X-Internal-Key` header.",
+    response_model=None,
+)
 async def active_users(_=Depends(verify_internal_key)):
     db = get_db()
     cursor = db.bot_state.find({"status": "active"}, {"wallet_address": 1})
@@ -126,7 +144,12 @@ async def active_users(_=Depends(verify_internal_key)):
     return ok(wallets)
 
 
-@router.get("/wallet-key/{wallet_address}")
+@router.get(
+    "/wallet-key/{wallet_address}",
+    summary="Get encrypted wallet key",
+    description="Returns the Fernet-encrypted private key for the given wallet address, or `null` if none is stored. Used by the DEX monitor to sign transactions. Requires `X-Internal-Key` header.",
+    response_model=None,
+)
 async def get_wallet_key(wallet_address: str, _=Depends(verify_internal_key)):
     db = get_db()
     settings = await db.settings.find_one(
