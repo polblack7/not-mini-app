@@ -144,4 +144,4 @@ async def export_json(
     ops_items = await db.ops.find(query).sort("timestamp", -1).to_list(length=2000)
     payload = [format_doc(doc) for doc in ops_items]
     headers = {"Content-Disposition": "attachment; filename=ops.json"}
-    return JSONResponse(content=jsonable_encoder(ok(payload)), headers=headers)
+    return JSONResponse(content=jsonable_encoder(payload), headers=headers)
