@@ -154,6 +154,9 @@ export const api = {
     return request("/settings/wallet-key", {
       method: "DELETE"
     });
+  },
+  async deployContract() {
+    return request("/deploy/contract", { method: "POST" });
   }
 };
 

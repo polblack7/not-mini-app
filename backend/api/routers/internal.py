@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Header
 
 from api.errors import ApiException
 from api.responses import ok
-from api.schemas import InternalEvent
+from api.schemas import FlashLoanContractPayload, InternalEvent
 from api.services import create_log, create_notification
 from api.telegram import notify_wallet
 from core.config import get_settings
@@ -159,3 +159,30 @@ async def get_wallet_key(wallet_address: str, _=Depends(verify_internal_key)):
     if not settings or not settings.get("encrypted_private_key"):
         return ok({"encrypted_private_key": None})
     return ok({"encrypted_private_key": settings["encrypted_private_key"]})
+
+
+@router.put(
+    "/flash-loan-contract",
+    summary="Set flash loan contract address",
+    description=(
+        "Updates `flash_loan_contract` (and optionally `flash_loan_contract_abi_path`) "
+        "in the wallet's settings. Called automatically by `make deploy` after a successful "
+        "Hardhat deployment. Requires `X-Internal-Key` header."
+    ),
+    response_model=None,
+)
+async def set_flash_loan_contract(payload: FlashLoanContractPayload, _=Depends(verify_internal_key)):
+    db = get_db()
+    wallet = payload.wallet_address.lower()
+    update: dict = {
+        "flash_loan_contract": payload.flash_loan_contract,
+        "updated_at": now_utc(),
+    }
+    if payload.flash_loan_contract_abi_path:
+        update["flash_loan_contract_abi_path"] = payload.flash_loan_contract_abi_path
+    await db.settings.update_one(
+        {"wallet_address": wallet},
+        {"$set": update},
+        upsert=True,
+    )
+    return ok({"wallet_address": wallet, "flash_loan_contract": payload.flash_loan_contract})

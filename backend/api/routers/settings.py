@@ -41,6 +41,8 @@ async def get_settings(user: dict = Depends(get_current_user)):
         dex_list=settings.get("dex_list", []),
         pairs=settings.get("pairs", []),
         scan_frequency_sec=settings.get("scan_frequency_sec", 15),
+        flash_loan_contract=settings.get("flash_loan_contract", ""),
+        flash_loan_contract_abi_path=settings.get("flash_loan_contract_abi_path", ""),
         updated_at=settings.get("updated_at"),
         has_wallet_key=bool(settings.get("encrypted_private_key")),
     )

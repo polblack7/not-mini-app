@@ -21,6 +21,8 @@ const SettingsPage = () => {
   const [notice, setNotice] = useState(null);
   const [walletKey, setWalletKey] = useState("");
   const [keyNotice, setKeyNotice] = useState(null);
+  const [deploying, setDeploying] = useState(false);
+  const [deployResult, setDeployResult] = useState(null);
 
   useEffect(() => {
     api.getSettings().then(setSettings).catch(() => setSettings(null));
@@ -64,6 +66,21 @@ const SettingsPage = () => {
       setKeyNotice({ type: "success", message: "Wallet key saved" });
     } catch (err) {
       setKeyNotice({ type: "error", message: err.message || "Failed to save key" });
+    }
+  };
+
+  const deployContract = async () => {
+    setDeploying(true);
+    setDeployResult(null);
+    setKeyNotice(null);
+    try {
+      const result = await api.deployContract();
+      setDeployResult({ type: "success", ...result });
+      setSettings({ ...settings, flash_loan_contract: result.address });
+    } catch (err) {
+      setDeployResult({ type: "error", message: err.message || "Deploy failed" });
+    } finally {
+      setDeploying(false);
     }
   };
 
@@ -174,6 +191,45 @@ const SettingsPage = () => {
           </span>
         </div>
         {keyNotice && <div className={`alert ${keyNotice.type}`}>{keyNotice.message}</div>}
+
+        <div className="field">
+          <label>Flash Loan contract</label>
+          {settings.flash_loan_contract ? (
+            <div>
+              <span className="badge success">Deployed</span>
+              <code style={{ marginLeft: 8, fontSize: "0.75rem", wordBreak: "break-all" }}>
+                {settings.flash_loan_contract}
+              </code>
+            </div>
+          ) : (
+            <span className="badge" style={{ background: "var(--tg-theme-hint-color, #888)", color: "#fff" }}>
+              Not deployed
+            </span>
+          )}
+        </div>
+
+        {deployResult && (
+          <div className={`alert ${deployResult.type}`}>
+            {deployResult.type === "success"
+              ? `Deployed on ${deployResult.network} · tx ${deployResult.tx_hash?.slice(0, 18)}…`
+              : deployResult.message}
+          </div>
+        )}
+
+        <button
+          className="primary"
+          onClick={deployContract}
+          disabled={deploying || !settings.has_wallet_key}
+          style={{ marginBottom: 12 }}
+        >
+          {deploying ? "Deploying…" : settings.flash_loan_contract ? "Re-deploy contract" : "Deploy contract"}
+        </button>
+        {!settings.has_wallet_key && (
+          <p style={{ fontSize: "0.8rem", color: "var(--tg-theme-hint-color, #888)", marginTop: 4 }}>
+            Save your private key below to enable deployment.
+          </p>
+        )}
+
         {settings.has_wallet_key ? (
           <div className="field">
             <span className="badge success">Key stored</span>

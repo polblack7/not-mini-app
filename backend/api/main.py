@@ -11,7 +11,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from api.errors import ApiException
 from api.ratelimit import rate_limiter
 from api.responses import error
-from api.routers import auth, bot, internal, logs, market, notifications, profile, reports, settings
+from api.routers import auth, bot, deploy, internal, logs, market, notifications, profile, reports, settings
 from core.config import get_settings
 from core.db import init_indexes
 
@@ -36,6 +36,7 @@ app = FastAPI(
         {"name": "market",        "description": "Live arbitrage opportunities detected by the monitor."},
         {"name": "notifications", "description": "In-app notifications feed."},
         {"name": "logs",          "description": "Structured bot execution logs."},
+        {"name": "deploy",        "description": "One-click smart contract deployment."},
         {"name": "internal",      "description": "Internal endpoints used by the DEX monitor service (X-Internal-Key required)."},
     ],
 )
@@ -88,4 +89,5 @@ app.include_router(reports.router, dependencies=[rate_limit])
 app.include_router(market.router, dependencies=[rate_limit])
 app.include_router(notifications.router, dependencies=[rate_limit])
 app.include_router(logs.router, dependencies=[rate_limit])
+app.include_router(deploy.router, dependencies=[rate_limit])
 app.include_router(internal.router, dependencies=[rate_limit])

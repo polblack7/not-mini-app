@@ -43,6 +43,8 @@ class SettingsPayload(BaseModel):
     dex_list: list[str] = Field(default_factory=list)
     pairs: list[str] = Field(default_factory=list)
     scan_frequency_sec: int = 15
+    flash_loan_contract: str = ""
+    flash_loan_contract_abi_path: str = ""
 
 
 class SettingsResponse(SettingsPayload):
@@ -110,3 +112,9 @@ class InternalEvent(BaseModel):
     wallet_address: str
     type: str
     payload: dict[str, Any]
+
+
+class FlashLoanContractPayload(BaseModel):
+    wallet_address: str
+    flash_loan_contract: str
+    flash_loan_contract_abi_path: str = ""
