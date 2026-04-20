@@ -45,7 +45,7 @@ def get_settings() -> Settings:
         wallet_encryption_key=os.getenv("WALLET_ENCRYPTION_KEY", ""),
         eth_rpc_url=os.getenv("ETH_RPC_URL", ""),
         deploy_rpc_url=os.getenv("DEPLOY_RPC_URL") or os.getenv("ETH_RPC_URL", ""),
-        deploy_network=os.getenv("DEPLOY_NETWORK", "sepolia"),
+        deploy_network=os.getenv("DEPLOY_NETWORK", "mainnet"),
         flash_loan_abi_path=os.getenv("FLASH_LOAN_ABI_PATH", ""),
     )
     return _cached_settings

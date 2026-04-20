@@ -38,7 +38,7 @@ export const getMetaMaskClient = () => {
 };
 
 export const WALLET_NETWORKS = {
-  allowlist: ["0x1", "0xaa36a7"],
+  allowlist: ["0x1"],
   defaultChainId: "0x1",
   networks: {
     "0x1": {
@@ -47,13 +47,6 @@ export const WALLET_NETWORKS = {
       rpcUrls: ["https://cloudflare-eth.com"],
       nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
       blockExplorerUrls: ["https://etherscan.io"]
-    },
-    "0xaa36a7": {
-      chainId: "0xaa36a7",
-      chainName: "Sepolia",
-      rpcUrls: ["https://rpc.sepolia.org"],
-      nativeCurrency: { name: "Sepolia Ether", symbol: "ETH", decimals: 18 },
-      blockExplorerUrls: ["https://sepolia.etherscan.io"]
     }
   }
 };

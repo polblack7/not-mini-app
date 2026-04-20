@@ -17,7 +17,6 @@ const DEX_OPTIONS = [
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState(null);
-  const [customDex, setCustomDex] = useState("");
   const [notice, setNotice] = useState(null);
   const [walletKey, setWalletKey] = useState("");
   const [keyNotice, setKeyNotice] = useState(null);
@@ -34,14 +33,6 @@ const SettingsPage = () => {
       ? settings.dex_list.filter((item) => item !== dex)
       : [...settings.dex_list, dex];
     setSettings({ ...settings, dex_list: list });
-  };
-
-  const addCustomDex = () => {
-    if (!settings) return;
-    const value = customDex.trim();
-    if (!value || settings.dex_list.includes(value)) return;
-    setSettings({ ...settings, dex_list: [...settings.dex_list, value] });
-    setCustomDex("");
   };
 
   const save = async () => {
@@ -139,32 +130,25 @@ const SettingsPage = () => {
         </div>
         <div className="field">
           <label>DEX selection</label>
-          <div className="checkbox-group">
-            {DEX_OPTIONS.map((dex) => (
-              <label key={dex} className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={settings.dex_list.includes(dex)}
-                  onChange={() => updateDex(dex)}
-                />
-                {dex}
-              </label>
-            ))}
+          <div className="dex-chip-group">
+            {DEX_OPTIONS.map((dex) => {
+              const active = settings.dex_list.includes(dex);
+              return (
+                <button
+                  key={dex}
+                  type="button"
+                  className={`dex-chip${active ? " dex-chip--active" : ""}`}
+                  onClick={() => updateDex(dex)}
+                  aria-pressed={active}
+                >
+                  {active && <span className="dex-chip__dot" />}
+                  {dex}
+                </button>
+              );
+            })}
           </div>
         </div>
-        <div className="field">
-          <label>Custom DEX</label>
-          <div className="tag-input">
-            <input
-              value={customDex}
-              onChange={(event) => setCustomDex(event.target.value)}
-              placeholder="Add DEX name"
-            />
-            <button type="button" className="ghost" onClick={addCustomDex}>
-              Add
-            </button>
-          </div>
-        </div>
+
         <div className="field">
           <label>Market scan frequency (seconds)</label>
           <input
