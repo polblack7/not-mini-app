@@ -9,6 +9,7 @@ const DEX_OPTIONS = [
   "ShibaSwap",
   "Curve",
   "Balancer V2",
+  "Balancer V3",
   "0x",
   "1inch",
   "KyberSwap Elastic",
