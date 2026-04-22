@@ -27,6 +27,15 @@ _ADDRESSES_PROVIDER = {
 
 _ARTIFACT_SUBPATH = Path("contracts") / "FlashLoan.sol" / "FlashLoan.json"
 
+# All DEX router addresses that must be approved on the contract after deploy.
+# Mirrors DEX_ROUTER_CONFIG in not-dex-monitor/not_dex_monitor/dex/addresses.py.
+_KNOWN_ROUTERS = [
+    "0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D",  # Uniswap V2
+    "0xd9e1cE17f2641f24aE83637ab66a2cca9C378B9F",  # SushiSwap
+    "0x03f7724180AA6b939894B5Ca4314783B0b36b329",  # ShibaSwap
+    "0xE592427A0AEce92De3Edee1F18E0157C05861564",  # Uniswap V3
+]
+
 
 def _find_artifact(configured_path: str = "") -> Optional[Path]:
     """Locate the compiled FlashLoan Hardhat artifact.
@@ -122,10 +131,18 @@ async def _deploy(
 
         new_address = receipt["contractAddress"]
         log.info("Deployed at %s", new_address)
+
+        # Approve all known DEX routers on the freshly deployed contract.
+        current_nonce = nonce + 1
+        current_nonce = _approve_routers_blocking(
+            w3, abi, new_address, account.address, private_key,
+            gas_price, chain_id, current_nonce, log,
+        )
+
         return {
             "address": new_address,
             "tx_hash": tx_hash.hex(),
-            "nonce_after_deploy": nonce + 1,
+            "nonce_after_deploy": current_nonce,
         }
 
     result = await asyncio.to_thread(_blocking_deploy)
@@ -145,6 +162,51 @@ async def _deploy(
             )
 
     return result
+
+
+def _approve_routers_blocking(
+    w3,
+    abi: list,
+    contract_address: str,
+    sender: str,
+    private_key: str,
+    gas_price: int,
+    chain_id: int,
+    start_nonce: int,
+    log,
+) -> int:
+    """Call setRouterApproval(router, true) for every known DEX router. Returns next nonce."""
+    contract = w3.eth.contract(
+        address=w3.to_checksum_address(contract_address),
+        abi=abi,
+    )
+    nonce = start_nonce
+    for router_addr in _KNOWN_ROUTERS:
+        checksum = w3.to_checksum_address(router_addr)
+        try:
+            already = contract.functions.approvedRouters(checksum).call()
+            if already:
+                log.info("Router %s already approved — skipping", checksum)
+                continue
+        except Exception:
+            pass  # contract may not expose the view yet; attempt the tx anyway
+
+        tx = contract.functions.setRouterApproval(checksum, True).build_transaction({
+            "from": sender,
+            "nonce": nonce,
+            "gasPrice": int(gas_price * 1.1),
+            "gas": 80_000,
+            "chainId": chain_id,
+        })
+        signed = w3.eth.account.sign_transaction(tx, private_key)
+        tx_hash = w3.eth.send_raw_transaction(signed.raw_transaction)
+        receipt = w3.eth.wait_for_transaction_receipt(tx_hash, timeout=120)
+        if receipt["status"] == 1:
+            log.info("Approved router %s (tx %s)", checksum, tx_hash.hex())
+        else:
+            log.warning("setRouterApproval reverted for %s", checksum)
+        nonce += 1
+    return nonce
 
 
 def _blocking_pause_old(
@@ -186,6 +248,78 @@ def _blocking_pause_old(
         log.info("Old contract %s paused (tx %s)", old_address, tx_hash.hex())
     else:
         log.warning("Pause tx for %s reverted", old_address)
+
+
+@router.post(
+    "/approve-routers",
+    summary="Approve all known DEX routers on the deployed FlashLoan contract",
+    response_model=None,
+)
+async def approve_routers(user: dict = Depends(get_current_user)):
+    """Call setRouterApproval(router, true) for every router in _KNOWN_ROUTERS
+    on the contract already stored in the user's settings."""
+    app_settings = get_settings()
+
+    if not app_settings.wallet_encryption_key:
+        raise ApiException(
+            status_code=503, code="ENCRYPTION_NOT_CONFIGURED",
+            message="Wallet encryption is not configured on this server",
+        )
+    if not app_settings.eth_rpc_url:
+        raise ApiException(
+            status_code=503, code="RPC_NOT_CONFIGURED",
+            message="ETH_RPC_URL is not configured on this server",
+        )
+
+    wallet = user["wallet_address"]
+    db = get_db()
+    settings_doc = await db.settings.find_one({"wallet_address": wallet})
+
+    encrypted_key = settings_doc.get("encrypted_private_key") if settings_doc else None
+    if not encrypted_key:
+        raise ApiException(status_code=400, code="NO_WALLET_KEY",
+                           message="Store your private key first via Settings → Auto-execute")
+
+    contract_address = settings_doc.get("flash_loan_contract") if settings_doc else None
+    if not contract_address:
+        raise ApiException(status_code=400, code="NO_CONTRACT",
+                           message="No deployed contract found in settings")
+
+    artifact_path = _find_artifact(app_settings.flash_loan_abi_path)
+    if artifact_path is None:
+        raise ApiException(status_code=503, code="ARTIFACT_MISSING",
+                           message="FlashLoan artifact not found")
+
+    abi = json.loads(artifact_path.read_text())["abi"]
+
+    try:
+        private_key = decrypt_private_key(encrypted_key, wallet, app_settings.wallet_encryption_key)
+    except Exception as exc:
+        raise ApiException(status_code=500, code="DECRYPTION_FAILED",
+                           message=f"Failed to decrypt wallet key: {exc}")
+
+    try:
+        def _run():
+            import logging as _logging
+            log = _logging.getLogger(__name__)
+            from web3 import Web3
+            w3 = Web3(Web3.HTTPProvider(app_settings.deploy_rpc_url,
+                                        request_kwargs={"timeout": 120}))
+            account = w3.eth.account.from_key(private_key)
+            nonce = w3.eth.get_transaction_count(account.address)
+            gas_price = w3.eth.gas_price
+            _approve_routers_blocking(
+                w3, abi, contract_address, account.address, private_key,
+                gas_price, w3.eth.chain_id, nonce, log,
+            )
+
+        await asyncio.to_thread(_run)
+    except Exception as exc:
+        raise ApiException(status_code=500, code="APPROVE_FAILED", message=str(exc))
+    finally:
+        del private_key
+
+    return ok({"approved_routers": _KNOWN_ROUTERS, "contract": contract_address})
 
 
 @router.get(

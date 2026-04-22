@@ -405,6 +405,7 @@ textarea {
   padding: 2px 8px;
   font-weight: 700;
   font-size: 0.75rem;
+  align-self: flex-start;
 }
 
 .tag-input {

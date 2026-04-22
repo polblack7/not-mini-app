@@ -76,7 +76,7 @@ const SettingsPage = () => {
     }
   };
 
-  const removeWalletKey = async () => {
+const removeWalletKey = async () => {
     setKeyNotice(null);
     try {
       await api.deleteWalletKey();
@@ -215,9 +215,9 @@ const SettingsPage = () => {
           </p>
         )}
 
-        {settings.has_wallet_key ? (
+{settings.has_wallet_key ? (
           <div className="field">
-            <span className="badge success">Key stored</span>
+            <span className="badge success" style={{ marginBottom: 8 }}>Key stored</span>
             <button className="ghost" onClick={removeWalletKey} style={{ marginLeft: 8 }}>
               Remove key
             </button>
