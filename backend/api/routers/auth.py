@@ -6,7 +6,6 @@ from api.auth import create_access_token
 from api.errors import ApiException
 from api.responses import ok
 from api.schemas import LoginRequest, LoginResponse, Profile
-from api.seed import ensure_mock_seed
 from core.config import get_settings
 from core.db import get_db
 from core.utils import hash_token, is_valid_wallet, now_utc
@@ -25,7 +24,17 @@ def _build_profile(user: dict) -> Profile:
     )
 
 
-@router.post("/login")
+@router.post(
+    "/login",
+    summary="Login / register",
+    description=(
+        "Authenticate with a wallet address and access token.\n\n"
+        "- If the wallet doesn't exist yet, a new account is created (requires master token).\n"
+        "- On success returns a signed JWT valid for `JWT_TTL_MINUTES` minutes.\n"
+        "- Optionally links a Telegram user ID to the wallet."
+    ),
+    response_model=None,
+)
 async def login(payload: LoginRequest):
     if not is_valid_wallet(payload.wallet_address):
         raise ApiException(status_code=400, code="WALLET_INVALID", message="Invalid wallet address")
@@ -69,8 +78,6 @@ async def login(payload: LoginRequest):
             {"$set": {"wallet_address": wallet}},
             upsert=True,
         )
-
-    await ensure_mock_seed(wallet)
 
     token = create_access_token(wallet)
     user = await db.users.find_one({"wallet_address": wallet})

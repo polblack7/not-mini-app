@@ -143,6 +143,20 @@ export const api = {
   /** @returns {Promise<Opportunity[]>} */
   async marketOpportunities() {
     return request("/market/opportunities");
+  },
+  async setWalletKey(private_key) {
+    return request("/settings/wallet-key", {
+      method: "PUT",
+      body: JSON.stringify({ private_key })
+    });
+  },
+  async deleteWalletKey() {
+    return request("/settings/wallet-key", {
+      method: "DELETE"
+    });
+  },
+  async deployContract() {
+    return request("/deploy/contract", { method: "POST" });
   }
 };
 

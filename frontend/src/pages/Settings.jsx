@@ -2,12 +2,27 @@ import React, { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { TagInput } from "../components/TagInput";
 
-const DEX_OPTIONS = ["Uniswap", "SushiSwap", "Curve"];
+const DEX_OPTIONS = [
+  "Uniswap V2",
+  "Uniswap V3",
+  "SushiSwap",
+  "ShibaSwap",
+  "Curve",
+  "Balancer V2",
+  "Balancer V3",
+  "0x",
+  "1inch",
+  "KyberSwap Elastic",
+  "DODO V2",
+];
 
 const SettingsPage = () => {
   const [settings, setSettings] = useState(null);
-  const [customDex, setCustomDex] = useState("");
   const [notice, setNotice] = useState(null);
+  const [walletKey, setWalletKey] = useState("");
+  const [keyNotice, setKeyNotice] = useState(null);
+  const [deploying, setDeploying] = useState(false);
+  const [deployResult, setDeployResult] = useState(null);
 
   useEffect(() => {
     api.getSettings().then(setSettings).catch(() => setSettings(null));
@@ -21,14 +36,6 @@ const SettingsPage = () => {
     setSettings({ ...settings, dex_list: list });
   };
 
-  const addCustomDex = () => {
-    if (!settings) return;
-    const value = customDex.trim();
-    if (!value || settings.dex_list.includes(value)) return;
-    setSettings({ ...settings, dex_list: [...settings.dex_list, value] });
-    setCustomDex("");
-  };
-
   const save = async () => {
     if (!settings) return;
     setNotice(null);
@@ -38,6 +45,45 @@ const SettingsPage = () => {
       setNotice({ type: "success", message: "Saved" });
     } catch (err) {
       setNotice({ type: "error", message: err.message || "Failed to save" });
+    }
+  };
+
+  const submitWalletKey = async () => {
+    setKeyNotice(null);
+    if (!walletKey.trim()) return;
+    try {
+      await api.setWalletKey(walletKey.trim());
+      setWalletKey("");
+      setSettings({ ...settings, has_wallet_key: true });
+      setKeyNotice({ type: "success", message: "Wallet key saved" });
+    } catch (err) {
+      setKeyNotice({ type: "error", message: err.message || "Failed to save key" });
+    }
+  };
+
+  const deployContract = async () => {
+    setDeploying(true);
+    setDeployResult(null);
+    setKeyNotice(null);
+    try {
+      const result = await api.deployContract();
+      setDeployResult({ type: "success", ...result });
+      setSettings({ ...settings, flash_loan_contract: result.address });
+    } catch (err) {
+      setDeployResult({ type: "error", message: err.message || "Deploy failed" });
+    } finally {
+      setDeploying(false);
+    }
+  };
+
+const removeWalletKey = async () => {
+    setKeyNotice(null);
+    try {
+      await api.deleteWalletKey();
+      setSettings({ ...settings, has_wallet_key: false });
+      setKeyNotice({ type: "success", message: "Wallet key removed" });
+    } catch (err) {
+      setKeyNotice({ type: "error", message: err.message || "Failed to remove key" });
     }
   };
 
@@ -85,32 +131,25 @@ const SettingsPage = () => {
         </div>
         <div className="field">
           <label>DEX selection</label>
-          <div className="checkbox-group">
-            {DEX_OPTIONS.map((dex) => (
-              <label key={dex} className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={settings.dex_list.includes(dex)}
-                  onChange={() => updateDex(dex)}
-                />
-                {dex}
-              </label>
-            ))}
+          <div className="dex-chip-group">
+            {DEX_OPTIONS.map((dex) => {
+              const active = settings.dex_list.includes(dex);
+              return (
+                <button
+                  key={dex}
+                  type="button"
+                  className={`dex-chip${active ? " dex-chip--active" : ""}`}
+                  onClick={() => updateDex(dex)}
+                  aria-pressed={active}
+                >
+                  {active && <span className="dex-chip__dot" />}
+                  {dex}
+                </button>
+              );
+            })}
           </div>
         </div>
-        <div className="field">
-          <label>Custom DEX</label>
-          <div className="tag-input">
-            <input
-              value={customDex}
-              onChange={(event) => setCustomDex(event.target.value)}
-              placeholder="Add DEX name"
-            />
-            <button type="button" className="ghost" onClick={addCustomDex}>
-              Add
-            </button>
-          </div>
-        </div>
+
         <div className="field">
           <label>Market scan frequency (seconds)</label>
           <input
@@ -125,6 +164,79 @@ const SettingsPage = () => {
         <button className="primary" onClick={save}>
           Save
         </button>
+      </section>
+
+      <section className="card">
+        <div className="panel-header">
+          <h2>Auto-execute</h2>
+          <span className="panel-meta">
+            {settings.has_wallet_key
+              ? "Wallet key stored — trades will execute automatically"
+              : "Provide your private key to enable auto-execution"}
+          </span>
+        </div>
+        {keyNotice && <div className={`alert ${keyNotice.type}`}>{keyNotice.message}</div>}
+
+        <div className="field">
+          <label>Flash Loan contract</label>
+          {settings.flash_loan_contract ? (
+            <div>
+              <span className="badge success">Deployed</span>
+              <code style={{ marginLeft: 8, fontSize: "0.75rem", wordBreak: "break-all" }}>
+                {settings.flash_loan_contract}
+              </code>
+            </div>
+          ) : (
+            <span className="badge" style={{ background: "var(--tg-theme-hint-color, #888)", color: "#fff" }}>
+              Not deployed
+            </span>
+          )}
+        </div>
+
+        {deployResult && (
+          <div className={`alert ${deployResult.type}`}>
+            {deployResult.type === "success"
+              ? `Deployed on ${deployResult.network} · tx ${deployResult.tx_hash?.slice(0, 18)}…`
+              : deployResult.message}
+          </div>
+        )}
+
+        <button
+          className="primary"
+          onClick={deployContract}
+          disabled={deploying || !settings.has_wallet_key}
+          style={{ marginBottom: 12 }}
+        >
+          {deploying ? "Deploying…" : settings.flash_loan_contract ? "Re-deploy contract" : "Deploy contract"}
+        </button>
+        {!settings.has_wallet_key && (
+          <p style={{ fontSize: "0.8rem", color: "var(--tg-theme-hint-color, #888)", marginTop: 4 }}>
+            Save your private key below to enable deployment.
+          </p>
+        )}
+
+{settings.has_wallet_key ? (
+          <div className="field">
+            <span className="badge success" style={{ marginBottom: 8 }}>Key stored</span>
+            <button className="ghost" onClick={removeWalletKey} style={{ marginLeft: 8 }}>
+              Remove key
+            </button>
+          </div>
+        ) : (
+          <div className="field">
+            <label>Private key</label>
+            <input
+              type="password"
+              value={walletKey}
+              onChange={(event) => setWalletKey(event.target.value)}
+              placeholder="0x..."
+              autoComplete="off"
+            />
+            <button className="primary" onClick={submitWalletKey} style={{ marginTop: 8 }}>
+              Save key
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

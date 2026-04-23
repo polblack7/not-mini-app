@@ -32,7 +32,10 @@ const DashboardPage = () => {
   useEffect(() => {
     loadStatus();
     loadOpportunities();
-    const interval = setInterval(loadStatus, 4000);
+    const interval = setInterval(() => {
+      loadStatus();
+      loadOpportunities();
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 
@@ -87,18 +90,17 @@ const DashboardPage = () => {
       <section className="card opportunity">
         <div className="panel-header">
           <h3>Live opportunities</h3>
-          <span className="panel-meta">Mock adapter feed</span>
         </div>
         <div className="opportunity-grid">
           {opportunities.length === 0 ? (
             <p className="muted">No opportunities detected.</p>
           ) : (
-            opportunities.map((item) => (
-              <div key={item.id} className="opportunity-card">
+            opportunities.map((item, index) => (
+              <div key={`${item.timestamp}-${item.pair}-${index}`} className="opportunity-card">
                 <p className="opportunity-pair">{item.pair}</p>
-                <p className="muted">{item.dex}</p>
-                <p className="opportunity-profit">+{item.expected_profit_pct}%</p>
-                <p className="opportunity-score">Liquidity {item.liquidity_score}</p>
+                <p className="muted">{item.buy_dex} → {item.sell_dex}</p>
+                <p className="opportunity-profit">+{Number(item.expected_profit_pct).toFixed(3)}%</p>
+                <p className="opportunity-score">Liquidity {Number(item.liquidity_score).toFixed(3)}</p>
               </div>
             ))
           )}

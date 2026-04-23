@@ -7,12 +7,14 @@ export const NotificationsPanel = () => {
   const unreadCount = useMemo(() => items.filter((item) => !item.read).length, [items]);
 
   const load = async () => {
-    const data = await api.notifications(20);
+    const data = await api.notifications(6);
     setItems(data);
   };
 
   useEffect(() => {
     load();
+    const interval = setInterval(load, 4000);
+    return () => clearInterval(interval);
   }, []);
 
   const markAllRead = async () => {

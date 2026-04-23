@@ -34,12 +34,18 @@ const ReportsPage = () => {
   const profitSeries = ops
     .slice()
     .reverse()
-    .map((op, index) => ({ x: index, y: op.profit }));
+    .map((op, index, arr) => {
+      const total = arr.slice(0, index + 1).reduce((sum, o) => sum + o.profit, 0);
+      return { x: index, y: total };
+    });
 
   const successSeries = ops
     .slice()
     .reverse()
-    .map((op, index) => ({ x: index, y: op.status === "success" ? 1 : 0 }));
+    .map((op, index, arr) => {
+      const successes = arr.slice(0, index + 1).filter((o) => o.status === "success").length;
+      return { x: index, y: successes / (index + 1) };
+    });
 
   const exportCsv = async () => {
     const blob = await api.exportCsv(queryParams);

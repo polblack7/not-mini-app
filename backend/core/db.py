@@ -29,5 +29,6 @@ async def init_indexes() -> None:
     await db.notifications.create_index("wallet_address")
     await db.logs.create_index("wallet_address")
     await db.bot_state.create_index("wallet_address", unique=True)
+    await db.opportunities.create_index([("wallet_address", 1), ("timestamp", -1)])
     await db.telegram_users.create_index("telegram_user_id", unique=True)
     await db.telegram_users.create_index("wallet_address")

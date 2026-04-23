@@ -12,7 +12,12 @@ from core.db import get_db
 router = APIRouter(prefix="", tags=["notifications"])
 
 
-@router.get("/notifications")
+@router.get(
+    "/notifications",
+    summary="List notifications",
+    description="Returns the most recent notifications for the authenticated wallet, newest first. Default limit is 20.",
+    response_model=None,
+)
 async def list_notifications(limit: int = 20, user: dict = Depends(get_current_user)):
     db = get_db()
     cursor = (
@@ -24,7 +29,12 @@ async def list_notifications(limit: int = 20, user: dict = Depends(get_current_u
     return ok(items)
 
 
-@router.post("/notifications/read")
+@router.post(
+    "/notifications/read",
+    summary="Mark notifications as read",
+    description="Marks the specified notification IDs as read. Only affects notifications belonging to the authenticated wallet.",
+    response_model=None,
+)
 async def mark_read(payload: NotificationReadRequest, user: dict = Depends(get_current_user)):
     db = get_db()
     if not payload.ids:

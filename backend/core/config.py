@@ -15,6 +15,11 @@ class Settings:
     cors_origins: str
     miniapp_url: str
     jwt_ttl_minutes: int
+    wallet_encryption_key: str
+    eth_rpc_url: str
+    deploy_rpc_url: str
+    deploy_network: str
+    flash_loan_abi_path: str
 
 
 _cached_settings: Settings | None = None
@@ -37,5 +42,10 @@ def get_settings() -> Settings:
         cors_origins=os.getenv("CORS_ORIGINS", "http://localhost:5173"),
         miniapp_url=os.getenv("MINIAPP_URL", ""),
         jwt_ttl_minutes=int(os.getenv("JWT_TTL_MINUTES", "10080")),
+        wallet_encryption_key=os.getenv("WALLET_ENCRYPTION_KEY", ""),
+        eth_rpc_url=os.getenv("ETH_RPC_URL", ""),
+        deploy_rpc_url=os.getenv("DEPLOY_RPC_URL") or os.getenv("ETH_RPC_URL", ""),
+        deploy_network=os.getenv("DEPLOY_NETWORK", "mainnet"),
+        flash_loan_abi_path=os.getenv("FLASH_LOAN_ABI_PATH", ""),
     )
     return _cached_settings

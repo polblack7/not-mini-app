@@ -13,7 +13,6 @@ from api.auth import get_current_user
 from api.responses import ok
 from api.services import format_doc
 from core.db import get_db
-from core.mock_data import compute_summary
 
 router = APIRouter(prefix="", tags=["reports"])
 
@@ -39,7 +38,12 @@ def _build_query(
     return query
 
 
-@router.get("/ops")
+@router.get(
+    "/ops",
+    summary="List trade operations",
+    description="Returns trade operations for the authenticated wallet, newest first. Supports filtering by date range, token pair, and DEX. Max 200 records.",
+    response_model=None,
+)
 async def ops(
     user: dict = Depends(get_current_user),
     from_ts: Optional[datetime] = Query(None, alias="from"),
@@ -55,7 +59,12 @@ async def ops(
     return ok(ops_items)
 
 
-@router.get("/stats/summary")
+@router.get(
+    "/stats/summary",
+    summary="Aggregated trade statistics",
+    description="Returns aggregated stats for the filtered trade set: total profit, successful arb count, average profitability, and success rate.",
+    response_model=None,
+)
 async def stats_summary(
     user: dict = Depends(get_current_user),
     from_ts: Optional[datetime] = Query(None, alias="from"),
@@ -66,11 +75,24 @@ async def stats_summary(
     db = get_db()
     query = _build_query(user["wallet_address"], from_ts, to_ts, pair, dex)
     ops_items = await db.ops.find(query).to_list(length=1000)
-    summary = compute_summary(ops_items)
+    successes = [op for op in ops_items if op.get("status") == "success"]
+    total = len(ops_items)
+    profit = sum(op["profit"] for op in successes)
+    summary = {
+        "total_profit": round(profit, 4),
+        "successful_arbs": len(successes),
+        "avg_profitability": round(profit / len(successes), 4) if successes else 0.0,
+        "success_rate": round(len(successes) / total, 4) if total else 0.0,
+    }
     return ok(summary)
 
 
-@router.get("/export/csv")
+@router.get(
+    "/export/csv",
+    summary="Export operations as CSV",
+    description="Streams up to 2000 trade operations as a CSV file attachment. Supports the same filters as `/ops`.",
+    response_model=None,
+)
 async def export_csv(
     user: dict = Depends(get_current_user),
     from_ts: Optional[datetime] = Query(None, alias="from"),
@@ -104,7 +126,12 @@ async def export_csv(
     return StreamingResponse(buffer, media_type="text/csv", headers=headers)
 
 
-@router.get("/export/json")
+@router.get(
+    "/export/json",
+    summary="Export operations as JSON",
+    description="Returns up to 2000 trade operations as a downloadable JSON file. Supports the same filters as `/ops`.",
+    response_model=None,
+)
 async def export_json(
     user: dict = Depends(get_current_user),
     from_ts: Optional[datetime] = Query(None, alias="from"),
@@ -117,4 +144,4 @@ async def export_json(
     ops_items = await db.ops.find(query).sort("timestamp", -1).to_list(length=2000)
     payload = [format_doc(doc) for doc in ops_items]
     headers = {"Content-Disposition": "attachment; filename=ops.json"}
-    return JSONResponse(content=jsonable_encoder(ok(payload)), headers=headers)
+    return JSONResponse(content=jsonable_encoder(payload), headers=headers)

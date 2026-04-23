@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Header
 
 from api.errors import ApiException
 from api.responses import ok
-from api.schemas import InternalEvent
+from api.schemas import FlashLoanContractPayload, InternalEvent
 from api.services import create_log, create_notification
 from api.telegram import notify_wallet
 from core.config import get_settings
@@ -20,7 +20,20 @@ async def verify_internal_key(x_internal_key: str | None = Header(default=None))
         raise ApiException(status_code=401, code="AUTH_INVALID", message="Invalid internal key")
 
 
-@router.post("/event")
+@router.post(
+    "/event",
+    summary="Ingest DEX monitor event",
+    description=(
+        "Accepts events from the DEX monitor service. Requires `X-Internal-Key` header.\n\n"
+        "Supported event `type` values:\n\n"
+        "- `op` — completed trade operation (writes to `ops`, updates user KPIs)\n"
+        "- `log` — structured log entry\n"
+        "- `notification` — push notification to the user\n"
+        "- `opportunity` — detected arbitrage opportunity\n"
+        "- `status` — bot status change (`active` / `stopped` / `error`)"
+    ),
+    response_model=None,
+)
 async def internal_event(payload: InternalEvent, _=Depends(verify_internal_key)):
     db = get_db()
     wallet = payload.wallet_address.lower()
@@ -69,6 +82,16 @@ async def internal_event(payload: InternalEvent, _=Depends(verify_internal_key))
         await notify_wallet(wallet, f"{data.get('title', 'Update')}: {data.get('message', '')}")
 
     elif event_type == "opportunity":
+        await db.opportunities.insert_one({
+            "wallet_address": wallet,
+            "pair": data.get("pair", ""),
+            "buy_dex": data.get("buy_dex", ""),
+            "sell_dex": data.get("sell_dex", ""),
+            "expected_profit_pct": float(data.get("expected_profit_pct", 0)),
+            "liquidity_score": float(data.get("liquidity_score", 0)),
+            "gas_price_gwei": float(data.get("gas_price_gwei", 0)),
+            "timestamp": data.get("timestamp", now_utc()),
+        })
         await create_notification(
             wallet,
             "opportunity",
@@ -108,9 +131,58 @@ async def internal_event(payload: InternalEvent, _=Depends(verify_internal_key))
     return ok({"status": "accepted"})
 
 
-@router.get("/active-users")
+@router.get(
+    "/active-users",
+    summary="List wallets with active bot",
+    description="Returns wallet addresses whose bot state is `active`. Used by the DEX monitor supervisor to determine which wallets to scan. Requires `X-Internal-Key` header.",
+    response_model=None,
+)
 async def active_users(_=Depends(verify_internal_key)):
     db = get_db()
     cursor = db.bot_state.find({"status": "active"}, {"wallet_address": 1})
     wallets = [doc.get("wallet_address") async for doc in cursor]
     return ok(wallets)
+
+
+@router.get(
+    "/wallet-key/{wallet_address}",
+    summary="Get encrypted wallet key",
+    description="Returns the Fernet-encrypted private key for the given wallet address, or `null` if none is stored. Used by the DEX monitor to sign transactions. Requires `X-Internal-Key` header.",
+    response_model=None,
+)
+async def get_wallet_key(wallet_address: str, _=Depends(verify_internal_key)):
+    db = get_db()
+    settings = await db.settings.find_one(
+        {"wallet_address": wallet_address.lower()},
+        {"encrypted_private_key": 1},
+    )
+    if not settings or not settings.get("encrypted_private_key"):
+        return ok({"encrypted_private_key": None})
+    return ok({"encrypted_private_key": settings["encrypted_private_key"]})
+
+
+@router.put(
+    "/flash-loan-contract",
+    summary="Set flash loan contract address",
+    description=(
+        "Updates `flash_loan_contract` (and optionally `flash_loan_contract_abi_path`) "
+        "in the wallet's settings. Called automatically by `make deploy` after a successful "
+        "Hardhat deployment. Requires `X-Internal-Key` header."
+    ),
+    response_model=None,
+)
+async def set_flash_loan_contract(payload: FlashLoanContractPayload, _=Depends(verify_internal_key)):
+    db = get_db()
+    wallet = payload.wallet_address.lower()
+    update: dict = {
+        "flash_loan_contract": payload.flash_loan_contract,
+        "updated_at": now_utc(),
+    }
+    if payload.flash_loan_contract_abi_path:
+        update["flash_loan_contract_abi_path"] = payload.flash_loan_contract_abi_path
+    await db.settings.update_one(
+        {"wallet_address": wallet},
+        {"$set": update},
+        upsert=True,
+    )
+    return ok({"wallet_address": wallet, "flash_loan_contract": payload.flash_loan_contract})
