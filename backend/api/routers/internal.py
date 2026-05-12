@@ -69,8 +69,8 @@ async def internal_event(payload: InternalEvent, _=Depends(verify_internal_key))
                 },
                 upsert=True,
             )
-        await create_notification(wallet, "deal", "Deal completed", f"Profit {op['profit']}")
-        await notify_wallet(wallet, f"Deal completed: {op['pair']} profit {op['profit']}")
+            await create_notification(wallet, "deal", "Deal completed", f"Profit {op['profit']}")
+            await notify_wallet(wallet, f"Deal completed: {op['pair']} profit {op['profit']}")
 
     elif event_type == "log":
         await create_log(wallet, data.get("level", "info"), data.get("message", ""), data.get("context"))

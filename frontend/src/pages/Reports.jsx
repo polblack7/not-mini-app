@@ -1,166 +1,132 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { api } from "../api/client";
-import { LineChart } from "../components/LineChart";
+import { REPORT_PERIODS } from "../constants/markets";
+import { OP_STATUS } from "../constants/status";
+import { useApi } from "../hooks/useApi";
 import { downloadBlob } from "../utils/download";
+import { formatNumber, formatPct } from "../utils/format";
+import {
+  ChipButton,
+  COLORS,
+  KpiTile,
+  PageHeader,
+  PageSection,
+  Section,
+} from "../components/ui";
+import { ChartCard, OpList, ReportFilters } from "../components/reports";
 
-const ReportsPage = () => {
-  const [ops, setOps] = useState([]);
-  const [summary, setSummary] = useState(null);
-  const [filters, setFilters] = useState({ from: "", to: "", pair: "", dex: "" });
+const DEFAULT_FILTERS = { period: "7d", pair: "", dex: "" };
 
-  const queryParams = useMemo(() => {
-    const params = new URLSearchParams();
-    if (filters.from) params.set("from", new Date(filters.from).toISOString());
-    if (filters.to) params.set("to", new Date(filters.to).toISOString());
-    if (filters.pair) params.set("pair", filters.pair);
-    if (filters.dex) params.set("dex", filters.dex);
-    const query = params.toString();
-    return query ? `?${query}` : "";
-  }, [filters]);
-
-  const load = async () => {
-    const [opsData, summaryData] = await Promise.all([
-      api.ops(queryParams),
-      api.statsSummary(queryParams)
-    ]);
-    setOps(opsData);
-    setSummary(summaryData);
-  };
-
-  useEffect(() => {
-    load();
-  }, [queryParams]);
-
-  const profitSeries = ops
-    .slice()
-    .reverse()
-    .map((op, index, arr) => {
-      const total = arr.slice(0, index + 1).reduce((sum, o) => sum + o.profit, 0);
-      return { x: index, y: total };
-    });
-
-  const successSeries = ops
-    .slice()
-    .reverse()
-    .map((op, index, arr) => {
-      const successes = arr.slice(0, index + 1).filter((o) => o.status === "success").length;
-      return { x: index, y: successes / (index + 1) };
-    });
-
-  const exportCsv = async () => {
-    const blob = await api.exportCsv(queryParams);
-    downloadBlob(blob, "ops.csv");
-  };
-
-  const exportJson = async () => {
-    const blob = await api.exportJson(queryParams);
-    downloadBlob(blob, "ops.json");
-  };
-
-  return (
-    <div className="reports">
-      <section className="card filter-bar">
-        <h2>Statistics & reports</h2>
-        <div className="filters">
-          <div className="field">
-            <label>Date from</label>
-            <input
-              type="date"
-              value={filters.from}
-              onChange={(event) => setFilters({ ...filters, from: event.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label>Date to</label>
-            <input
-              type="date"
-              value={filters.to}
-              onChange={(event) => setFilters({ ...filters, to: event.target.value })}
-            />
-          </div>
-          <div className="field">
-            <label>Token / pair</label>
-            <input
-              value={filters.pair}
-              onChange={(event) => setFilters({ ...filters, pair: event.target.value })}
-              placeholder="ETH/USDT"
-            />
-          </div>
-          <div className="field">
-            <label>DEX</label>
-            <input
-              value={filters.dex}
-              onChange={(event) => setFilters({ ...filters, dex: event.target.value })}
-              placeholder="Uniswap"
-            />
-          </div>
-        </div>
-        <div className="filter-actions">
-          <button className="ghost" onClick={() => setFilters({ from: "", to: "", pair: "", dex: "" })}>
-            Reset
-          </button>
-          <button className="ghost" onClick={exportCsv}>
-            Export CSV
-          </button>
-          <button className="ghost" onClick={exportJson}>
-            Export JSON
-          </button>
-        </div>
-      </section>
-
-      <section className="summary-grid">
-        <div className="card">
-          <p className="kpi-label">Total profit</p>
-          <h3>{summary ? `${summary.total_profit.toFixed(4)} ETH` : "--"}</h3>
-        </div>
-        <div className="card">
-          <p className="kpi-label">Success rate</p>
-          <h3>{summary ? `${(summary.success_rate * 100).toFixed(1)}%` : "--"}</h3>
-        </div>
-        <div className="card">
-          <p className="kpi-label">Avg profitability</p>
-          <h3>{summary ? `${summary.avg_profitability.toFixed(4)} ETH` : "--"}</h3>
-        </div>
-      </section>
-
-      <section className="chart-grid">
-        <LineChart title="Profit over time" points={profitSeries} formatValue={(v) => `${v.toFixed(3)} ETH`} />
-        <LineChart title="Success rate" points={successSeries} formatValue={(v) => `${(v * 100).toFixed(0)}%`} />
-      </section>
-
-      <section className="card table-card">
-        <h3>Operations</h3>
-        <div className="table-wrapper">
-          <table>
-            <thead>
-              <tr>
-                <th>Timestamp</th>
-                <th>Pair / route</th>
-                <th>Profit</th>
-                <th>Fees</th>
-                <th>Exec time</th>
-                <th>Status</th>
-                <th>Error</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ops.map((op) => (
-                <tr key={op.id || `${op.timestamp}-${op.pair}`}>
-                  <td>{new Date(op.timestamp).toLocaleString()}</td>
-                  <td>{op.pair}</td>
-                  <td className={op.profit >= 0 ? "positive" : "negative"}>{op.profit.toFixed(4)}</td>
-                  <td>{op.fees.toFixed(4)}</td>
-                  <td>{op.exec_time_ms} ms</td>
-                  <td>{op.status}</td>
-                  <td>{op.error_message || "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-    </div>
-  );
+const buildQuery = ({ period, pair, dex }) => {
+  const params = new URLSearchParams();
+  const selected = REPORT_PERIODS.find((p) => p.key === period);
+  if (selected?.hours) {
+    const from = new Date(Date.now() - selected.hours * 3600 * 1000).toISOString();
+    params.set("from", from);
+  }
+  if (pair) params.set("pair", pair);
+  if (dex) params.set("dex", dex);
+  const q = params.toString();
+  return q ? `?${q}` : "";
 };
 
-export default ReportsPage;
+const cumulativeSeries = (ops, picker) =>
+  ops
+    .slice()
+    .reverse()
+    .map((_, i, arr) => ({ x: i, y: picker(arr, i) }));
+
+export default function ReportsPage() {
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const query = useMemo(() => buildQuery(filters), [filters]);
+
+  const { data: ops } = useApi(() => api.ops(query), [query]);
+  const { data: summary } = useApi(() => api.statsSummary(query), [query]);
+
+  const opsList = ops || [];
+  const successes = opsList.filter((o) => o.status === OP_STATUS.SUCCESS).length;
+
+  const profitSeries = useMemo(
+    () => cumulativeSeries(opsList, (arr, i) => arr.slice(0, i + 1).reduce((s, o) => s + o.profit, 0)),
+    [opsList]
+  );
+
+  const successSeries = useMemo(
+    () =>
+      cumulativeSeries(opsList, (arr, i) => {
+        const wins = arr.slice(0, i + 1).filter((o) => o.status === OP_STATUS.SUCCESS).length;
+        return wins / (i + 1);
+      }),
+    [opsList]
+  );
+
+  const exportFile = async (kind) => {
+    const blob = await (kind === "csv" ? api.exportCsv(query) : api.exportJson(query));
+    downloadBlob(blob, `ops.${kind}`);
+  };
+
+  const headerActions = (
+    <div className="report-actions">
+      <ChipButton onClick={() => exportFile("csv")}>CSV</ChipButton>
+      <ChipButton onClick={() => exportFile("json")}>JSON</ChipButton>
+    </div>
+  );
+
+  const profitValue = profitSeries.length
+    ? `${profitSeries[profitSeries.length - 1].y.toFixed(3)} ETH`
+    : "—";
+  const successValue = successSeries.length
+    ? formatPct(successSeries[successSeries.length - 1].y)
+    : "—";
+
+  return (
+    <>
+      <PageHeader title="Reports" action={headerActions} />
+
+      <ReportFilters filters={filters} onChange={setFilters} />
+
+      <div className="summary-grid">
+        <KpiTile
+          label="Total profit"
+          value={formatNumber(summary?.total_profit, 3)}
+          sub="ETH"
+          tone="success"
+        />
+        <KpiTile
+          label="Success"
+          value={formatPct(summary?.success_rate ?? 0)}
+          sub={`${successes}/${opsList.length}`}
+        />
+        <KpiTile
+          label="Avg / deal"
+          value={formatNumber(summary?.avg_profitability)}
+          sub="ETH"
+        />
+      </div>
+
+      <PageSection gap="lg" className="charts-stack">
+        <ChartCard
+          title="Cumulative profit"
+          value={profitValue}
+          points={profitSeries}
+          stroke={COLORS.primary}
+          fill={COLORS.primary}
+        />
+        <ChartCard
+          title="Success rate"
+          value={successValue}
+          points={successSeries}
+          stroke={COLORS.success}
+          fill={COLORS.success}
+        />
+      </PageSection>
+
+      <Section
+        title="Operations"
+        action={<span style={{ fontSize: 12, color: COLORS.muted }}>{opsList.length} ops</span>}
+      >
+        <OpList ops={opsList} />
+      </Section>
+    </>
+  );
+}
