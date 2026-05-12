@@ -16,9 +16,16 @@ import { InfoCard } from "./InfoCard";
 const MIN_TOKEN_LENGTH = 3;
 const REDIRECT_DELAY_MS = 400;
 
+// Optional preset for local Tenderly Virtual TestNet runs. When both env vars
+// are present the form opens prefilled and shows a hint -- the user just hits
+// "Connect to Network".
+const TENDERLY_WALLET = import.meta.env.VITE_TENDERLY_WALLET || "";
+const TENDERLY_TOKEN  = import.meta.env.VITE_TENDERLY_TOKEN  || "";
+const TENDERLY_PRESET = Boolean(TENDERLY_WALLET && TENDERLY_TOKEN);
+
 export const ConnectForm = ({ onBack }) => {
-  const [wallet, setWallet] = useState("");
-  const [token, setToken] = useState("");
+  const [wallet, setWallet] = useState(TENDERLY_WALLET);
+  const [token, setToken] = useState(TENDERLY_TOKEN);
   const [walletError, setWalletError] = useState(null);
   const notice = useNotice();
   const navigate = useNavigate();
@@ -84,8 +91,12 @@ export const ConnectForm = ({ onBack }) => {
         </div>
 
         <InfoCard
-          title="Read-only by default"
-          body="Auto-execute is opt-in from Strategy → Auto-execute."
+          title={TENDERLY_PRESET ? "Tenderly demo preset loaded" : "Read-only by default"}
+          body={
+            TENDERLY_PRESET
+              ? "Prefilled with the Tenderly Virtual TestNet wallet from .env. Hit Connect to begin."
+              : "Auto-execute is opt-in from Strategy -> Auto-execute."
+          }
         />
       </div>
 
