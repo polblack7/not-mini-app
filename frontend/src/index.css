@@ -1770,6 +1770,18 @@ textarea {
     left: 24px;
     right: 24px;
   }
+
+  /* Connect screen on desktop: CTA sits right after content (same as
+     splash), not pinned to the viewport bottom. */
+  .connect-screen__body {
+    flex: 0 0 auto;
+    overflow-y: visible;
+  }
+
+  .connect-screen__cta {
+    padding-top: 24px;
+    padding-bottom: 24px;
+  }
 }
 
 @media (min-width: 1200px) {
