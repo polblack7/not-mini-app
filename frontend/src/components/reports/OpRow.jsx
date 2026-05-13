@@ -3,7 +3,7 @@ import { cn } from "../../utils/cn";
 import { OP_STATUS } from "../../constants/status";
 import { Icon } from "../ui/Icon";
 import { COLORS } from "../ui/tokens";
-import { formatClockTime, formatSigned } from "../../utils/format";
+import { formatClockTime, formatSignedUsd, formatUsd } from "../../utils/format";
 
 export const OpRow = ({ op }) => {
   const success = op.status === OP_STATUS.SUCCESS;
@@ -26,10 +26,10 @@ export const OpRow = ({ op }) => {
       </div>
       <div>
         <div className={cn("op-row__profit", op.profit >= 0 ? "op-row__profit--pos" : "op-row__profit--neg")}>
-          {formatSigned(op.profit)}
+          {formatSignedUsd(op.profit)}
         </div>
         <div className="op-row__detail">
-          {op.exec_time_ms}ms · fees {Number(op.fees).toFixed(4)}
+          {op.exec_time_ms}ms · fees {formatUsd(op.fees)}
         </div>
       </div>
     </div>

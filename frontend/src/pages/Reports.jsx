@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from "react";
-import { api } from "../api/client";
+import { api, getAuthToken } from "../api/client";
 import { REPORT_PERIODS } from "../constants/markets";
 import { OP_STATUS } from "../constants/status";
 import { useApi } from "../hooks/useApi";
-import { downloadBlob } from "../utils/download";
-import { formatNumber, formatPct } from "../utils/format";
+import { downloadFile } from "../utils/download";
+import { formatNumber, formatPct, formatUsd } from "../utils/format";
 import {
   ChipButton,
   COLORS,
@@ -15,17 +15,15 @@ import {
 } from "../components/ui";
 import { ChartCard, OpList, ReportFilters } from "../components/reports";
 
-const DEFAULT_FILTERS = { period: "7d", pair: "", dex: "" };
+const DEFAULT_FILTERS = { period: "7d" };
 
-const buildQuery = ({ period, pair, dex }) => {
+const buildQuery = ({ period }) => {
   const params = new URLSearchParams();
   const selected = REPORT_PERIODS.find((p) => p.key === period);
   if (selected?.hours) {
     const from = new Date(Date.now() - selected.hours * 3600 * 1000).toISOString();
     params.set("from", from);
   }
-  if (pair) params.set("pair", pair);
-  if (dex) params.set("dex", dex);
   const q = params.toString();
   return q ? `?${q}` : "";
 };
@@ -43,7 +41,15 @@ export default function ReportsPage() {
   const { data: ops } = useApi(() => api.ops(query), [query]);
   const { data: summary } = useApi(() => api.statsSummary(query), [query]);
 
-  const opsList = ops || [];
+  // Backend already sorts by timestamp DESC, but sort defensively in case
+  // a record sneaks in with a missing/older timestamp (e.g. from seed data).
+  const opsList = useMemo(
+    () =>
+      (ops || [])
+        .slice()
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
+    [ops]
+  );
   const successes = opsList.filter((o) => o.status === OP_STATUS.SUCCESS).length;
 
   const profitSeries = useMemo(
@@ -60,9 +66,21 @@ export default function ReportsPage() {
     [opsList]
   );
 
-  const exportFile = async (kind) => {
-    const blob = await (kind === "csv" ? api.exportCsv(query) : api.exportJson(query));
-    downloadBlob(blob, `ops.${kind}`);
+  const exportFile = (kind) => {
+    const token = getAuthToken();
+    if (!token) {
+      alert("Not authorized.");
+      return;
+    }
+    // Build a self-authenticated URL: ?token=<jwt> alongside the existing
+    // period query. The browser/Telegram external opener follows it,
+    // backend authenticates, and Content-Disposition triggers a real download
+    // (no blob-URL prompt in mobile WebViews).
+    const sep = query ? "&" : "?";
+    const path = `/api/export/${kind}${query}${sep}token=${encodeURIComponent(token)}`;
+    const url = new URL(path, window.location.origin).toString();
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    downloadFile(url, `ops-${stamp}.${kind}`);
   };
 
   const headerActions = (
@@ -73,7 +91,7 @@ export default function ReportsPage() {
   );
 
   const profitValue = profitSeries.length
-    ? `${profitSeries[profitSeries.length - 1].y.toFixed(3)} ETH`
+    ? formatUsd(profitSeries[profitSeries.length - 1].y)
     : "—";
   const successValue = successSeries.length
     ? formatPct(successSeries[successSeries.length - 1].y)
@@ -88,8 +106,8 @@ export default function ReportsPage() {
       <div className="summary-grid">
         <KpiTile
           label="Total profit"
-          value={formatNumber(summary?.total_profit, 3)}
-          sub="ETH"
+          value={formatUsd(summary?.total_profit ?? 0)}
+          sub="USD"
           tone="success"
         />
         <KpiTile
@@ -99,8 +117,8 @@ export default function ReportsPage() {
         />
         <KpiTile
           label="Avg / deal"
-          value={formatNumber(summary?.avg_profitability)}
-          sub="ETH"
+          value={formatUsd(summary?.avg_profitability ?? 0)}
+          sub="USD"
         />
       </div>
 

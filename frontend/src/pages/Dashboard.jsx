@@ -3,7 +3,7 @@ import { api } from "../api/client";
 import { useAuth } from "../hooks/useAuth";
 import { useBotStatus } from "../hooks/useBotStatus";
 import { usePolling } from "../hooks/usePolling";
-import { formatNumber, formatPct } from "../utils/format";
+import { formatNumber, formatPct, formatUsd } from "../utils/format";
 import {
   COLORS,
   KpiTile,
@@ -33,8 +33,8 @@ const KpiRow = ({ status }) => {
       <KpiTile label="Deals" value={kpis?.completed_deals ?? "—"} sub="last 24h" />
       <KpiTile
         label="Avg profit"
-        value={formatNumber(kpis?.avg_profitability)}
-        sub="ETH / deal"
+        value={formatUsd(kpis?.avg_profitability ?? 0)}
+        sub="USD / deal"
         tone="success"
       />
       <KpiTile

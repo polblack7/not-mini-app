@@ -3,7 +3,7 @@ import { cn } from "../../utils/cn";
 import { BOT_STATUS } from "../../constants/status";
 import { useErrorFlash } from "../../hooks/useErrorFlash";
 import { StatusDot } from "../ui/StatusDot";
-import { formatNumber } from "../../utils/format";
+import { formatUsd } from "../../utils/format";
 
 /**
  * Brand-deep balance card with the signature green/orange sweep animation.
@@ -34,7 +34,7 @@ export const HeroBalance = ({ status, onStart, onStop }) => {
           <div>
             <div className="hero-balance__label">Current Profit · 24h</div>
             <div className="hero-balance__value">
-              {formatNumber(profit)} <span className="unit">ETH</span>
+              {formatUsd(profit)}
             </div>
           </div>
           <span className="hero-balance__chip">

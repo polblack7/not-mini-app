@@ -1,9 +1,12 @@
-const ETH = "ETH";
-
-export function formatEth(value, digits = 4) {
+// Profit/fee values arrive from the backend already normalised to USD by the
+// monitor (see not-dex-monitor worker.py + util/prices.py). Display with $.
+export function formatUsd(value, digits = 2) {
  if (value == null || Number.isNaN(value)) return "--";
- return `${Number(value).toFixed(digits)} ${ETH}`;
+ return `$${Number(value).toFixed(digits)}`;
 }
+
+// Alias keeps existing imports working; new code should prefer formatUsd.
+export const formatEth = formatUsd;
 
 export function formatNumber(value, digits = 4) {
  if (value == null || Number.isNaN(value)) return "--";
@@ -19,6 +22,14 @@ export function formatSigned(value, digits = 4) {
  if (value == null || Number.isNaN(value)) return "--";
  const n = Number(value);
  return `${n >= 0 ? "+" : ""}${n.toFixed(digits)}`;
+}
+
+// Signed USD with $ sign placed correctly (e.g. "+$12.34", "-$0.05").
+export function formatSignedUsd(value, digits = 2) {
+ if (value == null || Number.isNaN(value)) return "--";
+ const n = Number(value);
+ const sign = n >= 0 ? "+" : "-";
+ return `${sign}$${Math.abs(n).toFixed(digits)}`;
 }
 
 export function truncateAddress(address, head = 6, tail = 4) {

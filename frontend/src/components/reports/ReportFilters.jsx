@@ -1,6 +1,5 @@
 import React from "react";
 import { Chip } from "../ui/Chip";
-import { FilterInput } from "../ui/TextInput";
 import { REPORT_PERIODS } from "../../constants/markets";
 
 export const ReportFilters = ({ filters, onChange }) => {
@@ -19,18 +18,6 @@ export const ReportFilters = ({ filters, onChange }) => {
             {p.label}
           </Chip>
         ))}
-      </div>
-      <div className="reports-filters__row no-scrollbar">
-        <FilterInput
-          value={filters.pair}
-          onChange={(pair) => patch({ pair })}
-          placeholder="Filter pair"
-        />
-        <FilterInput
-          value={filters.dex}
-          onChange={(dex) => patch({ dex })}
-          placeholder="Filter DEX"
-        />
       </div>
     </div>
   );
