@@ -1,6 +1,11 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
 
+/* Design targets:
+   - Mobile:  375 x 667 (iPhone SE viewport, Telegram WebApp baseline)
+   - Desktop: 1440 x 740 (standard laptop, Telegram Desktop WebApp)
+   Breakpoint at 768px splits the two cleanly. */
 :root {
+  --bp-mobile-max: 767px;
   --bg: #070707;
   --bg1: #121212;
   --bg2: #212125;
@@ -18,6 +23,12 @@
   --glass: rgba(255, 255, 255, 0.24);
   --divider: rgba(185, 193, 217, 0.20);
   --shadow-brand: 8px 8px 24px 0 rgba(132, 11, 205, 0.24);
+
+  /* Telegram WebApp SDK >= 7.7 populates these on the root element. We use
+     them with a 0 fallback so the layout still looks fine on desktop or on
+     pre-7.7 clients where the SDK hasn't injected the vars. The base padding
+     baked into each rule below is large enough to clear the Telegram chrome
+     even when the inset is 0. */
 }
 
 * {
@@ -145,7 +156,7 @@ textarea {
   position: sticky;
   bottom: 0;
   height: 64px;
-  padding-bottom: max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(24px + var(--tg-content-safe-area-inset-bottom, 0px));
   box-sizing: content-box;
   background: var(--bg1);
   border-top: 1px solid var(--divider);
@@ -178,7 +189,7 @@ textarea {
 
 /* App header (page-level greeting) */
 .page-header {
-  padding: calc(16px + max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px))) 24px 0;
+  padding: calc(56px + var(--tg-content-safe-area-inset-top, 0px)) 24px 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -458,7 +469,7 @@ textarea {
 /* Aurora: lightweight static variant on mobile / reduced-motion devices.
    The animated blurred blobs + mix-blend-mode + backdrop-filter pin the
    GPU on phones, so we strip everything except a single static tint. */
-@media (max-width: 720px), (prefers-reduced-motion: reduce) {
+@media (max-width: 767px), (prefers-reduced-motion: reduce) {
   .aurora__blob,
   .aurora__halo,
   .aurora__hue {
@@ -521,10 +532,15 @@ textarea {
   min-height: var(--tg-viewport-height, 100vh);
   color: var(--fg);
   overflow: hidden;
-  padding: 0 24px calc(32px + max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)));
+  padding:
+    calc(24px + var(--tg-content-safe-area-inset-top, 0px))
+    24px
+    calc(32px + var(--tg-content-safe-area-inset-bottom, 0px));
   isolation: isolate;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .splash > * {
@@ -536,26 +552,17 @@ textarea {
   z-index: 0;
 }
 
-.splash__halo {
-  position: absolute;
-  left: 50%;
-  top: 120px;
-  transform: translateX(-50%);
-  width: 320px;
-  height: 320px;
-  background-image: url("/assets/splash-shape.webp");
-  background-size: cover;
-  opacity: 0.95;
-  pointer-events: none;
-}
-
+/* Every flex child below uses the same width=100%/max-width=360px box so
+   they share an identical centred column. Without this, each element
+   shrink-wraps to its content width and any subpixel rounding makes the
+   wordmark/subtitle drift a few pixels off from the bottom block. */
 .splash__wordmark {
-  position: relative;
-  padding-top: 60px;
+  width: 100%;
+  max-width: 360px;
   font-weight: 700;
   font-size: 56px;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 .splash__wordmark .ne {
@@ -563,6 +570,8 @@ textarea {
 }
 
 .splash__subtitle {
+  width: 100%;
+  max-width: 360px;
   margin-top: 8px;
   font-size: 13px;
   color: var(--muted);
@@ -570,8 +579,48 @@ textarea {
   text-transform: uppercase;
 }
 
+/* Halo art -- a flow child now, not absolute. Sized to fit the 740 px
+   desktop target without overflow; 60 vw cap keeps it proportional on
+   the 375 px mobile target. */
+.splash__halo {
+  width: min(240px, 60vw);
+  aspect-ratio: 1 / 1;
+  margin: 16px 0;
+  background-image: url("/assets/splash-shape.webp");
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  opacity: 0.95;
+  pointer-events: none;
+}
+
+/* Desktop: tight sequential stack -- predictable identical rendering.
+   Mobile: bottom block is pushed to the bottom of the viewport so the
+   CTA is always thumb-reachable above the home indicator. */
 .splash__bottom {
-  margin-top: 460px;
+  width: 100%;
+  margin-top: 24px;
+  max-width: 360px;
+}
+
+@media (max-width: 767px) {
+  .splash__bottom {
+    margin-top: auto;
+  }
+}
+
+/* Desktop only: nudge halo + wordmark a few pixels to the right to
+   visually balance the Aurora blob that lives on the left half of the
+   viewport. Subtitle / heading / body / CTA stay at the geometric
+   centre so the lower column is anchored. */
+@media (min-width: 768px) {
+  .splash__halo,
+  .splash__wordmark {
+    transform: translateX(24px);
+  }
+  .splash__subtitle {
+    transform: translateX(24px);
+  }
 }
 
 .splash__heading {
@@ -586,12 +635,12 @@ textarea {
   font-size: 14px;
   line-height: 1.55;
   color: var(--muted);
-  max-width: 280px;
 }
 
 .splash__cta {
-  margin-top: auto;
-  padding-top: 24px;
+  width: 100%;
+  margin-top: 24px;
+  max-width: 360px;
 }
 
 .splash__cta .btn-primary {
@@ -613,7 +662,7 @@ textarea {
 }
 
 .connect-screen__top {
-  padding: calc(16px + max(var(--tg-safe-top, 0px), env(safe-area-inset-top, 0px))) 24px 0;
+  padding: calc(56px + var(--tg-content-safe-area-inset-top, 0px)) 24px 0;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -690,7 +739,7 @@ textarea {
 }
 
 .connect-screen__cta {
-  padding: 16px 24px calc(28px + max(var(--tg-safe-bottom, 0px), env(safe-area-inset-bottom, 0px)));
+  padding: 16px 24px calc(28px + var(--tg-content-safe-area-inset-bottom, 0px));
 }
 
 .connect-screen__cta .btn-primary {
@@ -1627,7 +1676,7 @@ textarea {
    On ≥720px the bottom tab-bar becomes a vertical sidebar on
    the left and the content column is constrained — same pattern
    as the original app shell. Mobile stays edge-to-edge.        */
-@media (min-width: 720px) {
+@media (min-width: 768px) {
   .app-shell {
     display: grid;
     grid-template-columns: 220px 1fr;
