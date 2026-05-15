@@ -1,118 +1,153 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useCallback, useMemo, useState } from "react";
 import { api } from "../api/client";
-import { LogsPanel } from "../components/LogsPanel";
-import { NotificationsPanel } from "../components/NotificationsPanel";
+import { useAuth } from "../hooks/useAuth";
+import { useBotStatus } from "../hooks/useBotStatus";
+import { usePolling } from "../hooks/usePolling";
+import { formatNumber, formatPct, formatUsd } from "../utils/format";
+import {
+  COLORS,
+  KpiTile,
+  NoticeSlot,
+  PageSection,
+  Pill,
+  Section,
+} from "../components/ui";
+import {
+  DashboardHeader,
+  HeroBalance,
+  LogList,
+  NotificationList,
+  OpportunitiesStrip,
+} from "../components/dashboard";
 
-const DashboardPage = () => {
-  const [status, setStatus] = useState(null);
-  const [opportunities, setOpportunities] = useState([]);
-  const [error, setError] = useState(null);
-  const navigate = useNavigate();
+const FEED_INTERVAL_MS = 4200;
+const NOTIFICATIONS_LIMIT = 6;
+const LOGS_LIMIT = 6;
 
-  const loadStatus = async () => {
-    try {
-      const data = await api.botStatus();
-      setStatus(data);
-      setError(null);
-    } catch (err) {
-      setError(err.message || "Failed to load status");
-    }
-  };
+const safe = (promise) => promise.catch(() => null);
 
-  const loadOpportunities = async () => {
-    try {
-      const data = await api.marketOpportunities();
-      setOpportunities(data);
-    } catch (err) {
-      setOpportunities([]);
-    }
-  };
-
-  useEffect(() => {
-    loadStatus();
-    loadOpportunities();
-    const interval = setInterval(() => {
-      loadStatus();
-      loadOpportunities();
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const startBot = async () => {
-    await api.startBot();
-    loadStatus();
-  };
-
-  const stopBot = async () => {
-    await api.stopBot();
-    loadStatus();
-  };
-
+const KpiRow = ({ status }) => {
+  const kpis = status?.kpis;
   return (
-    <div className="dashboard">
-      <section className="card hero">
-        <div>
-          <p className="eyebrow">Bot status</p>
-          <h2 className={`status ${status?.status || "stopped"}`}>{status?.status || "stopped"}</h2>
-          {status?.last_error && <p className="status-error">{status.last_error}</p>}
-        </div>
-        <div className="hero-actions">
-          <button className="primary" onClick={startBot}>
-            Start bot
-          </button>
-          <button className="danger" onClick={stopBot}>
-            Stop bot
-          </button>
-          <button className="ghost" onClick={() => navigate("/settings")}>
-            Strategy settings
-          </button>
-        </div>
-      </section>
-
-      {error && <div className="alert error">{error}</div>}
-
-      <section className="kpi-grid">
-        <div className="card kpi">
-          <p className="kpi-label">Current profit</p>
-          <h3>{status ? `${status.kpis.current_profit.toFixed(4)} ETH` : "--"}</h3>
-        </div>
-        <div className="card kpi">
-          <p className="kpi-label">Completed deals</p>
-          <h3>{status ? status.kpis.completed_deals : "--"}</h3>
-        </div>
-        <div className="card kpi">
-          <p className="kpi-label">Avg profitability</p>
-          <h3>{status ? `${status.kpis.avg_profitability.toFixed(4)} ETH` : "--"}</h3>
-        </div>
-      </section>
-
-      <section className="card opportunity">
-        <div className="panel-header">
-          <h3>Live opportunities</h3>
-        </div>
-        <div className="opportunity-grid">
-          {opportunities.length === 0 ? (
-            <p className="muted">No opportunities detected.</p>
-          ) : (
-            opportunities.map((item, index) => (
-              <div key={`${item.timestamp}-${item.pair}-${index}`} className="opportunity-card">
-                <p className="opportunity-pair">{item.pair}</p>
-                <p className="muted">{item.buy_dex} → {item.sell_dex}</p>
-                <p className="opportunity-profit">+{Number(item.expected_profit_pct).toFixed(3)}%</p>
-                <p className="opportunity-score">Liquidity {Number(item.liquidity_score).toFixed(3)}</p>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-
-      <div className="split">
-        <NotificationsPanel />
-        <LogsPanel />
-      </div>
+    <div className="kpi-row">
+      <KpiTile label="Deals" value={kpis?.completed_deals ?? "—"} sub="last 24h" />
+      <KpiTile
+        label="Avg profit"
+        value={formatUsd(kpis?.avg_profitability ?? 0)}
+        sub="USD / deal"
+        tone="success"
+      />
+      <KpiTile
+        label="Success"
+        value={kpis?.success_rate != null ? formatPct(kpis.success_rate) : "—"}
+        sub="rate"
+        tone="success"
+      />
     </div>
   );
 };
 
-export default DashboardPage;
+const LivePill = () => (
+  <Pill color={COLORS.success} bg="rgba(72,212,158,0.12)">
+    <span className="pill__dot" />
+    Live
+  </Pill>
+);
+
+export default function DashboardPage() {
+  const { profile } = useAuth();
+  const { status, refresh, setStatus } = useBotStatus();
+  const [opportunities, setOpportunities] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [error, setError] = useState(null);
+
+  const loadFeeds = useCallback(async () => {
+    try {
+      const [opps, notifs, lg] = await Promise.all([
+        safe(api.marketOpportunities()),
+        safe(api.notifications(NOTIFICATIONS_LIMIT)),
+        safe(api.logs(LOGS_LIMIT)),
+      ]);
+      setOpportunities(opps || []);
+      setNotifications(notifs || []);
+      setLogs(lg || []);
+      setError(null);
+    } catch (err) {
+      setError(err?.message || "Failed to load");
+    }
+  }, []);
+
+  usePolling(loadFeeds, FEED_INTERVAL_MS);
+
+  const unread = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
+
+  const startBot = async () => {
+    const res = await api.startBot();
+    if (res) setStatus(res);
+    refresh();
+  };
+
+  const stopBot = async () => {
+    const res = await api.stopBot();
+    if (res) setStatus(res);
+    refresh();
+  };
+
+  const markAllRead = async () => {
+    const ids = notifications.filter((n) => !n.read && n.id).map((n) => n.id);
+    if (!ids.length) return;
+    await api.markNotifications(ids);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const errorMessage = status?.last_error || error;
+
+  return (
+    <>
+      <DashboardHeader walletAddress={profile?.wallet_address} unreadCount={unread} />
+      <HeroBalance status={status} onStart={startBot} onStop={stopBot} />
+      <KpiRow status={status} />
+
+      <Section strip title="Live Opportunities" action={<LivePill />}>
+        <OpportunitiesStrip items={opportunities} />
+      </Section>
+
+      <Section
+        title={
+          <>
+            Notifications{" "}
+            {unread > 0 && (
+              <span style={{ color: COLORS.primary, fontSize: 14, fontWeight: 600 }}>
+                · {unread}
+              </span>
+            )}
+          </>
+        }
+        action={
+          <button type="button" className="link-action" onClick={markAllRead}>
+            Mark all read
+          </button>
+        }
+      >
+        <NotificationList items={notifications} />
+      </Section>
+
+      <Section
+        title="System logs"
+        action={<span style={{ fontSize: 12, color: COLORS.muted }}>Live</span>}
+      >
+        <LogList items={logs} />
+      </Section>
+
+      {errorMessage && (
+        <PageSection gap="md">
+          <NoticeSlot notice={{ kind: "error", message: errorMessage }} />
+        </PageSection>
+      )}
+    </>
+  );
+}

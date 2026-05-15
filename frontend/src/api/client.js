@@ -16,6 +16,10 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 let authToken = null;
 let onUnauthorized = null;
 
+export function getAuthToken() {
+  return authToken;
+}
+
 export function setAuthToken(token) {
   authToken = token;
 }
@@ -72,6 +76,16 @@ async function download(path) {
   const response = await fetch(`${API_BASE}${path}`, { headers });
   if (response.status === 401) {
     onUnauthorized && onUnauthorized();
+    throw new Error("Not authorized");
+  }
+  if (!response.ok) {
+    // Try to read a JSON error envelope; fall back to a generic message.
+    let message = `HTTP ${response.status}`;
+    try {
+      const payload = await response.json();
+      if (payload?.error?.message) message = payload.error.message;
+    } catch { /* binary body / non-JSON */ }
+    throw new Error(message);
   }
   return await response.blob();
 }

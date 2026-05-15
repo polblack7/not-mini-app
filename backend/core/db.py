@@ -12,7 +12,7 @@ def get_client() -> AsyncIOMotorClient:
     global _client
     if _client is None:
         settings = get_settings()
-        _client = AsyncIOMotorClient(settings.mongo_url)
+        _client = AsyncIOMotorClient(settings.mongo_url, tz_aware=True)
     return _client
 
 
